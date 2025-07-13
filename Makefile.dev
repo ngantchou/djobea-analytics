@@ -1,0 +1,238 @@
+# 🛠️ Makefile Développement - Djobea Analytics
+
+.PHONY: help setup dev build test clean docker-dev docker-clean
+
+# Variables
+COMPOSE_DEV_FILE := docker-compose.yml -f docker-compose.dev.yml
+NODE_VERSION := $(shell node --version 2>/dev/null)
+NPM_VERSION := $(shell npm --version 2>/dev/null)
+
+# Couleurs
+RED := \033[0;31m
+GREEN := \033[0;32m
+YELLOW := \033[1;33m
+BLUE := \033[0;34m
+NC := \033[0m
+
+# Aide
+help: ## Affiche cette aide
+	@echo "$(BLUE)🛠️  Djobea Analytics - Commandes Développement$(NC)"
+	@echo ""
+	@echo "$(GREEN)Configuration:$(NC)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E "(setup|install|config)" | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(BLUE)Développement:$(NC)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E "(dev|build|test|lint)" | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(BLUE)%-20s$(NC) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(YELLOW)Docker:$(NC)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E "(docker)" | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(YELLOW)%-20s$(NC) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(RED)Nettoyage:$(NC)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -E "(clean)" | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(RED)%-20s$(NC) %s\n", $$1, $$2}'
+
+# Vérification des prérequis
+check-prereqs: ## Vérifier les prérequis
+	@echo "$(BLUE)🔍 Vérification des prérequis...$(NC)"
+	@if [ -z "$(NODE_VERSION)" ]; then \
+		echo "$(RED)❌ Node.js n'est pas installé$(NC)"; \
+		exit 1; \
+	else \
+		echo "$(GREEN)✅ Node.js $(NODE_VERSION)$(NC)"; \
+	fi
+	@if [ -z "$(NPM_VERSION)" ]; then \
+		echo "$(RED)❌ npm n'est pas installé$(NC)"; \
+		exit 1; \
+	else \
+		echo "$(GREEN)✅ npm $(NPM_VERSION)$(NC)"; \
+	fi
+	@if command -v docker >/dev/null 2>&1; then \
+		echo "$(GREEN)✅ Docker $(shell docker --version | cut -d' ' -f3 | cut -d',' -f1)$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  Docker non installé (optionnel)$(NC)"; \
+	fi
+
+# Configuration complète
+setup: check-prereqs ## Configuration complète du projet
+	@echo "$(BLUE)🚀 Configuration du projet...$(NC)"
+	@chmod +x scripts/dev-setup.sh
+	@./scripts/dev-setup.sh
+
+setup-interactive: check-prereqs ## Configuration interactive
+	@echo "$(BLUE)🚀 Configuration interactive...$(NC)"
+	@chmod +x scripts/dev-setup.sh
+	@./scripts/dev-setup.sh --interactive
+
+# Installation des dépendances
+install: ## Installer les dépendances
+	@echo "$(BLUE)📦 Installation des dépendances...$(NC)"
+	@if [ -f "package-lock.json" ]; then \
+		npm ci; \
+	else \
+		npm install; \
+	fi
+	@echo "$(GREEN)✅ Dépendances installées$(NC)"
+
+# Configuration de l'environnement
+config: ## Configurer l'environnement
+	@echo "$(BLUE)⚙️  Configuration de l'environnement...$(NC)"
+	@if [ ! -f ".env.local" ]; then \
+		if [ -f ".env.local.example" ]; then \
+			cp .env.local.example .env.local; \
+			echo "$(GREEN)✅ .env.local créé depuis .env.local.example$(NC)"; \
+		else \
+			echo "$(YELLOW)⚠️  Créez un fichier .env.local$(NC)"; \
+		fi \
+	else \
+		echo "$(GREEN)✅ .env.local existe$(NC)"; \
+	fi
+
+# Développement
+dev: ## Démarrer le serveur de développement
+	@echo "$(BLUE)🚀 Démarrage du serveur de développement...$(NC)"
+	@npm run dev
+
+dev-debug: ## Démarrer avec debug activé
+	@echo "$(BLUE)🐛 Démarrage en mode debug...$(NC)"
+	@DEBUG=* npm run dev
+
+# Construction
+build: ## Construire le projet
+	@echo "$(BLUE)🔨 Construction du projet...$(NC)"
+	@npm run build
+	@echo "$(GREEN)✅ Construction terminée$(NC)"
+
+build-analyze: ## Construire avec analyse des bundles
+	@echo "$(BLUE)📊 Construction avec analyse...$(NC)"
+	@npm run analyze
+
+# Tests
+test: ## Exécuter tous les tests
+	@echo "$(BLUE)🧪 Exécution des tests...$(NC)"
+	@npm test
+
+test-watch: ## Tests en mode watch
+	@echo "$(BLUE)👀 Tests en mode watch...$(NC)"
+	@npm run test:watch
+
+test-coverage: ## Tests avec couverture
+	@echo "$(BLUE)📊 Tests avec couverture...$(NC)"
+	@npm run test:coverage
+
+test-e2e: ## Tests end-to-end
+	@echo "$(BLUE)🎭 Tests E2E...$(NC)"
+	@npm run test:e2e
+
+# Qualité du code
+lint: ## Vérifier le code
+	@echo "$(BLUE)🔍 Vérification du code...$(NC)"
+	@npm run lint
+
+lint-fix: ## Corriger automatiquement
+	@echo "$(BLUE)🔧 Correction automatique...$(NC)"
+	@npm run lint:fix
+
+type-check: ## Vérification TypeScript
+	@echo "$(BLUE)📝 Vérification TypeScript...$(NC)"
+	@npm run type-check
+
+format: ## Formater le code
+	@echo "$(BLUE)✨ Formatage du code...$(NC)"
+	@npm run format
+
+format-check: ## Vérifier le formatage
+	@echo "$(BLUE)🔍 Vérification du formatage...$(NC)"
+	@npm run format:check
+
+# Base de données
+db-setup: ## Configurer la base de données
+	@echo "$(BLUE)🗄️  Configuration de la base de données...$(NC)"
+	@npm run setup:db
+
+db-migrate: ## Exécuter les migrations
+	@echo "$(BLUE)🔄 Exécution des migrations...$(NC)"
+	@npm run migrate
+
+db-seed: ## Insérer les données de test
+	@echo "$(BLUE)🌱 Insertion des données de test...$(NC)"
+	@npm run seed
+
+# Docker - Développement
+docker-dev: ## Démarrer avec Docker
+	@echo "$(BLUE)🐳 Démarrage avec Docker...$(NC)"
+	@docker-compose $(COMPOSE_DEV_FILE) up
+
+docker-dev-build: ## Démarrer avec reconstruction
+	@echo "$(BLUE)🐳 Démarrage avec reconstruction...$(NC)"
+	@docker-compose $(COMPOSE_DEV_FILE) up --build
+
+docker-dev-detached: ## Démarrer en arrière-plan
+	@echo "$(BLUE)🐳 Démarrage en arrière-plan...$(NC)"
+	@docker-compose $(COMPOSE_DEV_FILE) up -d
+
+docker-logs: ## Voir les logs Docker
+	@docker-compose $(COMPOSE_DEV_FILE) logs -f
+
+docker-status: ## Statut des conteneurs
+	@echo "$(BLUE)📊 Statut des conteneurs:$(NC)"
+	@docker-compose $(COMPOSE_DEV_FILE) ps
+
+docker-shell: ## Shell dans le conteneur app
+	@docker-compose $(COMPOSE_DEV_FILE) exec djobea-app sh
+
+docker-db-shell: ## Shell dans PostgreSQL
+	@docker-compose $(COMPOSE_DEV_FILE) exec postgres psql -U djobea_user -d djobea
+
+docker-redis-shell: ## Shell dans Redis
+	@docker-compose $(COMPOSE_DEV_FILE) exec redis redis-cli
+
+# Nettoyage
+clean: ## Nettoyer les fichiers temporaires
+	@echo "$(YELLOW)🧹 Nettoyage...$(NC)"
+	@rm -rf .next
+	@rm -rf dist
+	@rm -rf coverage
+	@echo "$(GREEN)✅ Nettoyage terminé$(NC)"
+
+clean-deps: ## Nettoyer et réinstaller les dépendances
+	@echo "$(YELLOW)🧹 Nettoyage des dépendances...$(NC)"
+	@rm -rf node_modules
+	@rm -f package-lock.json
+	@npm install
+	@echo "$(GREEN)✅ Dépendances réinstallées$(NC)"
+
+docker-clean: ## Nettoyer Docker
+	@echo "$(YELLOW)🧹 Nettoyage Docker...$(NC)"
+	@docker-compose $(COMPOSE_DEV_FILE) down -v
+	@docker system prune -f
+	@echo "$(GREEN)✅ Docker nettoyé$(NC)"
+
+clean-all: clean clean-deps docker-clean ## Nettoyage complet
+
+# Sécurité
+security-audit: ## Audit de sécurité
+	@echo "$(BLUE)🔒 Audit de sécurité...$(NC)"
+	@npm audit
+
+security-fix: ## Corriger les vulnérabilités
+	@echo "$(BLUE)🔧 Correction des vulnérabilités...$(NC)"
+	@npm audit fix
+
+# Informations
+info: ## Informations sur le projet
+	@echo "$(BLUE)ℹ️  Informations sur le projet:$(NC)"
+	@echo "Node.js: $(NODE_VERSION)"
+	@echo "npm: $(NPM_VERSION)"
+	@echo "Projet: $(shell cat package.json | grep '"name"' | cut -d'"' -f4)"
+	@echo "Version: $(shell cat package.json | grep '"version"' | cut -d'"' -f4)"
+	@if [ -f ".env.local" ]; then \
+		echo "$(GREEN)✅ .env.local configuré$(NC)"; \
+	else \
+		echo "$(RED)❌ .env.local manquant$(NC)"; \
+	fi
+
+# Workflow complet
+full-check: lint type-check test build ## Vérification complète
+	@echo "$(GREEN)✅ Toutes les vérifications sont passées$(NC)"
+
+# Par défaut
+.DEFAULT_GOAL := help
