@@ -1,0 +1,336 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Djobea Analytics API",
+    "version": "1.0.0",
+    "description": "API for analytics and reporting"
+  },
+  "servers": [
+    {
+      "url": "http://djobea.ai/api",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/analytics": {
+      "get": {
+        "summary": "Get comprehensive analytics data",
+        "tags": ["Analytics"],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["24h", "7d", "30d", "90d", "1y"],
+              "default": "7d"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Analytics data retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "stats": {
+                          "$ref": "#/components/schemas/AnalyticsStats"
+                        },
+                        "charts": {
+                          "$ref": "#/components/schemas/AnalyticsCharts"
+                        },
+                        "insights": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Insight"
+                          }
+                        },
+                        "leaderboard": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/LeaderboardEntry"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/kpis": {
+      "get": {
+        "summary": "Get KPI data",
+        "tags": ["Analytics"],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["24h", "7d", "30d", "90d", "1y"],
+              "default": "7d"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "KPI data retrieved successfully"
+          }
+        }
+      }
+    },
+    "/analytics/insights": {
+      "get": {
+        "summary": "Get analytics insights",
+        "tags": ["Analytics"],
+        "responses": {
+          "200": {
+            "description": "Insights retrieved successfully"
+          }
+        }
+      }
+    },
+    "/analytics/performance": {
+      "get": {
+        "summary": "Get performance analytics",
+        "tags": ["Analytics"],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["24h", "7d", "30d", "90d", "1y"],
+              "default": "7d"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Performance data retrieved successfully"
+          }
+        }
+      }
+    },
+    "/analytics/services": {
+      "get": {
+        "summary": "Get services analytics",
+        "tags": ["Analytics"],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["24h", "7d", "30d", "90d", "1y"],
+              "default": "7d"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Services data retrieved successfully"
+          }
+        }
+      }
+    },
+    "/analytics/geographic": {
+      "get": {
+        "summary": "Get geographic analytics",
+        "tags": ["Analytics"],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["24h", "7d", "30d", "90d", "1y"],
+              "default": "7d"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Geographic data retrieved successfully"
+          }
+        }
+      }
+    },
+    "/analytics/leaderboard": {
+      "get": {
+        "summary": "Get leaderboard data",
+        "tags": ["Analytics"],
+        "responses": {
+          "200": {
+            "description": "Leaderboard data retrieved successfully"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalyticsStats": {
+        "type": "object",
+        "properties": {
+          "successRate": {
+            "type": "number"
+          },
+          "responseTime": {
+            "type": "number"
+          },
+          "totalRequests": {
+            "type": "integer"
+          },
+          "satisfaction": {
+            "type": "number"
+          },
+          "trends": {
+            "type": "object",
+            "properties": {
+              "successRate": {
+                "type": "number"
+              },
+              "responseTime": {
+                "type": "number"
+              },
+              "totalRequests": {
+                "type": "number"
+              },
+              "satisfaction": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      },
+      "AnalyticsCharts": {
+        "type": "object",
+        "properties": {
+          "performance": {
+            "type": "object",
+            "properties": {
+              "labels": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "successRate": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "aiEfficiency": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "satisfaction": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "services": {
+            "type": "object",
+            "properties": {
+              "labels": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "geographic": {
+            "type": "object",
+            "properties": {
+              "labels": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Insight": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["positive", "warning", "info"]
+          },
+          "icon": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number"
+          }
+        }
+      },
+      "LeaderboardEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "avatar": {
+            "type": "string"
+          },
+          "missions": {
+            "type": "integer"
+          },
+          "rating": {
+            "type": "number"
+          },
+          "responseTime": {
+            "type": "number"
+          },
+          "score": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  }
+}

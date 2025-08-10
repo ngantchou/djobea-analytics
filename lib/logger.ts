@@ -1,3 +1,4 @@
+// lib/logger.ts
 interface LogLevel {
   ERROR: 0
   WARN: 1
@@ -16,7 +17,11 @@ class Logger {
   private level: number
 
   constructor() {
-    this.level = process.env.NODE_ENV === "development" ? LOG_LEVELS.DEBUG : LOG_LEVELS.INFO
+    // Check if we're in a browser environment
+    const isClient = typeof window !== 'undefined'
+    this.level = (isClient ? process.env.NODE_ENV : process.env.NODE_ENV) === "development" 
+      ? LOG_LEVELS.DEBUG 
+      : LOG_LEVELS.INFO
   }
 
   private log(level: keyof LogLevel, message: string, data?: any) {
@@ -94,6 +99,10 @@ class Logger {
       duration: `${duration}ms`,
       ...metadata
     })
+  }
+
+  logSecurityEvent(event: string, data?: any) {
+    this.warn(`Security Event: ${event}`, data)
   }
 }
 

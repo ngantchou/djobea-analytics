@@ -1,13 +1,13 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useState, useEffect } from "react"
 
 interface KeyboardNavigationContextType {
   isCommandPaletteOpen: boolean
   toggleCommandPalette: () => void
-  shortcuts: Record<string, () => void>
-  registerShortcut: (key: string, callback: () => void) => void
+  isHelpModalOpen: boolean
+  toggleHelpModal: () => void
 }
 
 const KeyboardNavigationContext = createContext<KeyboardNavigationContextType | undefined>(undefined)
@@ -22,44 +22,52 @@ export function useKeyboardNavigation() {
 
 export function KeyboardNavigationProvider({ children }: { children: React.ReactNode }) {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
-  const [shortcuts, setShortcuts] = useState<Record<string, () => void>>({})
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false)
 
-  const toggleCommandPalette = () => {
-    setIsCommandPaletteOpen((prev) => !prev)
-  }
-
-  const registerShortcut = (key: string, callback: () => void) => {
-    setShortcuts((prev) => ({ ...prev, [key]: callback }))
-  }
+  const toggleCommandPalette = () => setIsCommandPaletteOpen((prev) => !prev)
+  const toggleHelpModal = () => setIsHelpModalOpen((prev) => !prev)
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Command/Ctrl + K to open command palette
+      // Cmd/Ctrl + K for command palette
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault()
         toggleCommandPalette()
-        return
       }
 
-      // Handle registered shortcuts
-      const shortcutKey = `${event.metaKey || event.ctrlKey ? "cmd+" : ""}${event.shiftKey ? "shift+" : ""}${event.key.toLowerCase()}`
-      const shortcut = shortcuts[shortcutKey]
-      if (shortcut) {
+      // Cmd/Ctrl + ? for help
+      if ((event.metaKey || event.ctrlKey) && event.key === "?") {
         event.preventDefault()
-        shortcut()
+        toggleHelpModal()
+      }
+
+      // Cmd/Ctrl + / for help
+      if ((event.metaKey || event.ctrlKey) && event.key === "/") {
+        event.preventDefault()
+        console.log("Toggle help modal")
+      }
+
+      // Escape to close modals
+      if (event.key === "Escape") {
+        setIsCommandPaletteOpen(false)
+        setIsHelpModalOpen(false)
       }
     }
 
-    document.addEventListener("keydown", handleKeyDown)
-    return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [shortcuts])
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [])
 
-  const value: KeyboardNavigationContextType = {
-    isCommandPaletteOpen,
-    toggleCommandPalette,
-    shortcuts,
-    registerShortcut,
-  }
-
-  return <KeyboardNavigationContext.Provider value={value}>{children}</KeyboardNavigationContext.Provider>
+  return (
+    <KeyboardNavigationContext.Provider
+      value={{
+        isCommandPaletteOpen,
+        toggleCommandPalette,
+        isHelpModalOpen,
+        toggleHelpModal,
+      }}
+    >
+      {children}
+    </KeyboardNavigationContext.Provider>
+  )
 }

@@ -231,7 +231,15 @@ export function ProfileActivity() {
               </div>
             )
           })}
+          
+          {activities.length === 0 && (
+            <div className="text-center py-8">
+              <Clock className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-400">Aucune activité récente</p>
+            </div>
+          )}
         </div>
+        )}
 
         <div className="mt-4 pt-4 border-t border-gray-700">
           <button className="w-full text-center text-sm text-blue-400 hover:text-blue-300 transition-colors">

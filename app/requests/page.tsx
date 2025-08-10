@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,41 +12,87 @@ import { RequestsStats } from "@/components/features/requests/requests-stats"
 import { useRequestsData } from "@/hooks/use-requests-data"
 import { Search, Filter, Plus, Download, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import React from "react"
 
 export default function RequestsPage() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [filters, setFilters] = useState({
-    status: "all",
     priority: "all",
-    service: "all",
-    zone: "all",
+    serviceType: "all",
+    location: "all",
     dateRange: "all",
   })
+  const [currentPage, setCurrentPage] = useState(1)
 
-  const { requests, stats, loading, error, pagination, refetch, updateRequest, assignRequest, cancelRequest } =
-    useRequestsData({
-      page: 1,
+  // Memoize the filters object to prevent infinite re-renders
+  const memoizedFilters = useMemo(() => {
+    const baseFilters: any = {
+      page: currentPage,
       limit: 10,
-      search: searchQuery,
-      status: activeTab === "all" ? "" : activeTab,
-      ...filters,
+    }
+
+    // Only add non-default values to prevent unnecessary re-renders
+    if (searchQuery.trim()) {
+      baseFilters.search = searchQuery.trim()
+    }
+
+    if (activeTab !== "all") {
+      baseFilters.status = activeTab
+    }
+
+    // Only add filters that are not "all"
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== "all") {
+        baseFilters[key] = value
+      }
     })
 
-  const handleSearch = (query: string) => {
+    return baseFilters
+  }, [activeTab, searchQuery, filters, currentPage])
+
+  // Use the memoized filters in the hook
+  const { 
+    data,
+    loading, 
+    error, 
+    refetch, 
+    updateRequest, 
+    assignRequest, 
+    cancelRequest,
+    exportRequests 
+  } = useRequestsData(memoizedFilters)
+
+  // Extract data with proper fallbacks
+  const requests = data?.requests || []
+  const stats = data?.stats || null
+  const pagination = {
+    page: data?.page || currentPage,
+    totalPages: data?.totalPages || 1,
+    total: data?.total || 0
+  }
+
+  const handleSearch = useCallback((query: string) => {
     setSearchQuery(query)
-  }
+    setCurrentPage(1) // Reset to first page when searching
+  }, [])
 
-  const handleFilterChange = (key: string, value: string) => {
+  const handleFilterChange = useCallback((key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }))
-  }
+    setCurrentPage(1) // Reset to first page when filtering
+  }, [])
 
-  const handleTabChange = (tab: string) => {
+  const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab)
-  }
+    setCurrentPage(1) // Reset to first page when changing tabs
+  }, [])
 
-  const handleRefresh = async () => {
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page)
+  }, [])
+
+  const handleRefresh = useCallback(async () => {
     try {
       await refetch()
       toast({
@@ -60,21 +106,61 @@ export default function RequestsPage() {
         variant: "destructive",
       })
     }
-  }
+  }, [refetch, toast])
 
-  const handleExport = () => {
-    toast({
-      title: "Export en cours",
-      description: "Le fichier sera téléchargé dans quelques instants.",
-    })
-  }
+  const handleExport = useCallback(async () => {
+    try {
+      toast({
+        title: "Export en cours",
+        description: "Le fichier sera téléchargé dans quelques instants.",
+      })
+      await exportRequests("csv")
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'exporter les données.",
+        variant: "destructive",
+      })
+    }
+  }, [exportRequests, toast])
 
-  const handleNewRequest = () => {
+  const handleNewRequest = useCallback(() => {
     toast({
       title: "Nouvelle demande",
       description: "Fonctionnalité en cours de développement.",
     })
-  }
+  }, [toast])
+
+  const clearFilter = useCallback((key: string) => {
+    if (key === "search") {
+      setSearchQuery("")
+    } else {
+      handleFilterChange(key, "all")
+    }
+  }, [handleFilterChange])
+
+  const clearAllFilters = useCallback(() => {
+    setSearchQuery("")
+    setFilters({
+      priority: "all",
+      serviceType: "all",
+      location: "all",
+      dateRange: "all",
+    })
+    setActiveTab("all")
+    setCurrentPage(1)
+  }, [])
+
+  // Count active filters
+  const activeFiltersCount = useMemo(() => {
+    let count = 0
+    if (searchQuery.trim()) count++
+    if (activeTab !== "all") count++
+    Object.values(filters).forEach(value => {
+      if (value !== "all") count++
+    })
+    return count
+  }, [searchQuery, activeTab, filters])
 
   if (error) {
     return (
@@ -84,7 +170,7 @@ export default function RequestsPage() {
             <div className="text-center">
               <h3 className="text-lg font-semibold text-red-600 mb-2">Erreur de chargement</h3>
               <p className="text-gray-600 mb-4">Impossible de charger les demandes. Veuillez réessayer.</p>
-              <Button onClick={refetch} variant="outline">
+              <Button onClick={handleRefresh} variant="outline">
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Réessayer
               </Button>
@@ -102,10 +188,15 @@ export default function RequestsPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Demandes</h1>
           <p className="text-gray-600 mt-1">Gérez toutes les demandes de services</p>
+          {activeFiltersCount > 0 && (
+            <p className="text-sm text-blue-600 mt-1">
+              {activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} actif{activeFiltersCount > 1 ? 's' : ''}
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleRefresh} variant="outline" size="sm">
-            <RefreshCw className="w-4 h-4 mr-2" />
+          <Button onClick={handleRefresh} variant="outline" size="sm" disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Actualiser
           </Button>
           <Button onClick={handleExport} variant="outline" size="sm">
@@ -125,10 +216,22 @@ export default function RequestsPage() {
       {/* Filtres et recherche */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
-            Filtres et recherche
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Filtres et recherche
+            </CardTitle>
+            {activeFiltersCount > 0 && (
+              <Button 
+                onClick={clearAllFilters} 
+                variant="ghost" 
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Effacer tout ({activeFiltersCount})
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Barre de recherche */}
@@ -152,34 +255,35 @@ export default function RequestsPage() {
                 <SelectItem value="all">Toutes les priorités</SelectItem>
                 <SelectItem value="urgent">Urgent</SelectItem>
                 <SelectItem value="high">Élevée</SelectItem>
-                <SelectItem value="medium">Moyenne</SelectItem>
+                <SelectItem value="normal">Normale</SelectItem>
                 <SelectItem value="low">Faible</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={filters.service} onValueChange={(value) => handleFilterChange("service", value)}>
+            <Select value={filters.serviceType} onValueChange={(value) => handleFilterChange("serviceType", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Service" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les services</SelectItem>
-                <SelectItem value="electricite">Électricité</SelectItem>
-                <SelectItem value="plomberie">Plomberie</SelectItem>
-                <SelectItem value="menage">Ménage</SelectItem>
-                <SelectItem value="jardinage">Jardinage</SelectItem>
+                <SelectItem value="Électricité">Électricité</SelectItem>
+                <SelectItem value="Plomberie">Plomberie</SelectItem>
+                <SelectItem value="Ménage">Ménage</SelectItem>
+                <SelectItem value="Jardinage">Jardinage</SelectItem>
+                <SelectItem value="Électroménager">Électroménager</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={filters.zone} onValueChange={(value) => handleFilterChange("zone", value)}>
+            <Select value={filters.location} onValueChange={(value) => handleFilterChange("location", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Zone" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Toutes les zones</SelectItem>
-                <SelectItem value="bonamoussadi-centre">Bonamoussadi Centre</SelectItem>
-                <SelectItem value="bonamoussadi-nord">Bonamoussadi Nord</SelectItem>
-                <SelectItem value="bonamoussadi-sud">Bonamoussadi Sud</SelectItem>
-                <SelectItem value="bonamoussadi-est">Bonamoussadi Est</SelectItem>
+                <SelectItem value="Bonamoussadi">Bonamoussadi</SelectItem>
+                <SelectItem value="Akwa">Akwa</SelectItem>
+                <SelectItem value="Deido">Deido</SelectItem>
+                <SelectItem value="Bonapriso">Bonapriso</SelectItem>
               </SelectContent>
             </Select>
 
@@ -198,30 +302,35 @@ export default function RequestsPage() {
           </div>
 
           {/* Badges des filtres actifs */}
-          <div className="flex flex-wrap gap-2">
-            {searchQuery && (
-              <Badge variant="secondary" className="flex items-center gap-1">
-                Recherche: {searchQuery}
-                <button onClick={() => setSearchQuery("")} className="ml-1 hover:bg-gray-200 rounded-full p-0.5">
-                  ×
-                </button>
-              </Badge>
-            )}
-            {Object.entries(filters).map(
-              ([key, value]) =>
-                value !== "all" && (
-                  <Badge key={key} variant="secondary" className="flex items-center gap-1">
-                    {key}: {value}
-                    <button
-                      onClick={() => handleFilterChange(key, "all")}
-                      className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
-                    >
-                      ×
-                    </button>
-                  </Badge>
-                ),
-            )}
-          </div>
+          {activeFiltersCount > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {searchQuery && (
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  Recherche: {searchQuery}
+                  <button 
+                    onClick={() => clearFilter("search")} 
+                    className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+              {Object.entries(filters).map(
+                ([key, value]) =>
+                  value !== "all" && (
+                    <Badge key={key} variant="secondary" className="flex items-center gap-1">
+                      {key}: {value}
+                      <button
+                        onClick={() => clearFilter(key)}
+                        className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ),
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -252,7 +361,7 @@ export default function RequestsPage() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="in_progress">
+          <TabsTrigger value="in-progress">
             En cours
             {stats && (
               <Badge variant="secondary" className="ml-2">
@@ -286,9 +395,26 @@ export default function RequestsPage() {
             onUpdateRequest={updateRequest}
             onAssignRequest={assignRequest}
             onCancelRequest={cancelRequest}
+            onPageChange={handlePageChange}
           />
         </TabsContent>
       </Tabs>
     </div>
   )
+}
+
+// Debounce utility function
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout
+  return function executedFunction(...args: Parameters<T>) {
+    const later = () => {
+      clearTimeout(timeout)
+      func(...args)
+    }
+    clearTimeout(timeout)
+    timeout = setTimeout(later, wait)
+  }
 }

@@ -1,0 +1,316 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Djobea Finances API",
+    "version": "1.0.0",
+    "description": "API for financial data and transactions"
+  },
+  "servers": [
+    {
+      "url": "http://djobea.ai/api",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/finances": {
+      "get": {
+        "summary": "Get financial data",
+        "tags": ["Finances"],
+        "parameters": [
+          {
+            "name": "dateRange",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["today", "week", "month", "quarter", "year"]
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["income", "expense"]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["completed", "pending", "cancelled"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Financial data retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FinancialData"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/finances/transactions": {
+      "get": {
+        "summary": "Get transactions",
+        "tags": ["Finances"],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          },
+          {
+            "name": "dateRange",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["income", "expense"]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["completed", "pending", "cancelled"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transactions retrieved successfully"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a transaction",
+        "tags": ["Finances"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTransactionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transaction created successfully"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "FinancialData": {
+        "type": "object",
+        "properties": {
+          "stats": {
+            "type": "object",
+            "properties": {
+              "totalRevenue": {
+                "type": "number"
+              },
+              "totalExpenses": {
+                "type": "number"
+              },
+              "netProfit": {
+                "type": "number"
+              },
+              "monthlyGrowth": {
+                "type": "number"
+              },
+              "activeContracts": {
+                "type": "integer"
+              },
+              "averageOrderValue": {
+                "type": "number"
+              },
+              "cashFlow": {
+                "type": "number"
+              },
+              "projectedRevenue": {
+                "type": "number"
+              }
+            }
+          },
+          "charts": {
+            "type": "object",
+            "properties": {
+              "revenueVsExpenses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "month": {
+                      "type": "string"
+                    },
+                    "revenue": {
+                      "type": "number"
+                    },
+                    "expenses": {
+                      "type": "number"
+                    }
+                  }
+                }
+              },
+              "categoryBreakdown": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "category": {
+                      "type": "string"
+                    },
+                    "amount": {
+                      "type": "number"
+                    },
+                    "percentage": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transaction"
+            }
+          },
+          "forecast": {
+            "type": "object",
+            "properties": {
+              "nextMonth": {
+                "type": "object",
+                "properties": {
+                  "projectedRevenue": {
+                    "type": "number"
+                  },
+                  "projectedExpenses": {
+                    "type": "number"
+                  },
+                  "confidence": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Transaction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["income", "expense"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["completed", "pending", "cancelled"]
+          },
+          "paymentMethod": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateTransactionRequest": {
+        "type": "object",
+        "required": ["type", "amount", "category", "description", "paymentMethod", "date"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["income", "expense"]
+          },
+          "amount": {
+            "type": "number"
+          },
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "paymentMethod": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      }
+    }
+  }
+}

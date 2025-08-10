@@ -84,6 +84,7 @@ export class MessagesService {
   static async getConversations(
     page = 1,
     limit = 20,
+    filters?: { status?: string; search?: string }
   ): Promise<{
     conversations: Conversation[]
     total: number
@@ -91,13 +92,23 @@ export class MessagesService {
     totalPages: number
   }> {
     try {
-      const response = await ApiClient.get<{
-        conversations: Conversation[]
-        total: number
-        page: number
-        totalPages: number
-      }>(`/api/messages/conversations?page=${page}&limit=${limit}`)
-      return response
+      const response = await ApiClient.getConversations({
+        page,
+        limit,
+        status: filters?.status,
+        search: filters?.search
+      })
+      
+      if (response.success) {
+        return {
+          conversations: response.data.conversations || [],
+          total: response.data.pagination?.total || 0,
+          page: response.data.pagination?.page || page,
+          totalPages: response.data.pagination?.totalPages || 1
+        }
+      } else {
+        throw new Error(response.error || "Failed to fetch conversations")
+      }
     } catch (error) {
       console.error("Get conversations error:", error)
       throw new Error("Erreur lors de la récupération des conversations")
@@ -135,13 +146,21 @@ export class MessagesService {
     totalPages: number
   }> {
     try {
-      const response = await ApiClient.get<{
-        messages: Message[]
-        total: number
-        page: number
-        totalPages: number
-      }>(`/api/messages/conversations/${conversationId}/messages?page=${page}&limit=${limit}`)
-      return response
+      const response = await ApiClient.getConversationMessages(conversationId, {
+        page,
+        limit
+      })
+      
+      if (response.success) {
+        return {
+          messages: response.data.messages || [],
+          total: response.data.pagination?.total || 0,
+          page: response.data.pagination?.page || page,
+          totalPages: Math.ceil((response.data.pagination?.total || 0) / limit)
+        }
+      } else {
+        throw new Error(response.error || "Failed to fetch messages")
+      }
     } catch (error) {
       console.error("Get messages error:", error)
       throw new Error("Erreur lors de la récupération des messages")
@@ -150,26 +169,44 @@ export class MessagesService {
 
   static async sendMessage(data: SendMessageData): Promise<Message> {
     try {
-      const formData = new FormData()
-      formData.append("content", data.content)
-      if (data.conversationId) formData.append("conversationId", data.conversationId)
-      if (data.recipientId) formData.append("recipientId", data.recipientId)
-      if (data.type) formData.append("type", data.type)
-      if (data.replyTo) formData.append("replyTo", data.replyTo)
-      if (data.metadata) formData.append("metadata", JSON.stringify(data.metadata))
-
-      if (data.attachments) {
-        data.attachments.forEach((file, index) => {
-          formData.append(`attachments[${index}]`, file)
-        })
-      }
-
-      const response = await ApiClient.post<Message>("/api/messages/send", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      const response = await ApiClient.sendMessage({
+        conversationId: data.conversationId,
+        recipientId: data.recipientId,
+        content: data.content,
+        type: data.type || "text",
+        senderType: "admin", // Default to admin for manual messages
+        attachments: data.attachments,
+        metadata: data.metadata
       })
-      return response
+      
+      if (response.success) {
+        // Transform response to match expected Message format
+        return {
+          id: response.data.conversation_id || Date.now().toString(),
+          conversationId: data.conversationId || "",
+          senderId: "admin",
+          senderName: "Administrateur",
+          senderAvatar: "",
+          recipientId: data.recipientId || "",
+          recipientName: "",
+          content: data.content,
+          type: data.type || "text",
+          attachments: data.attachments ? data.attachments.map(file => ({
+            id: Date.now().toString(),
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            url: URL.createObjectURL(file)
+          })) : undefined,
+          status: "sent",
+          replyTo: data.replyTo,
+          metadata: data.metadata,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      } else {
+        throw new Error(response.error || "Failed to send message")
+      }
     } catch (error) {
       console.error("Send message error:", error)
       throw new Error("Erreur lors de l'envoi du message")
@@ -209,11 +246,31 @@ export class MessagesService {
 
   static async getUnreadCount(): Promise<number> {
     try {
-      const response = await ApiClient.get<{ count: number }>("/api/messages/unread-count")
-      return response.count
+      const response = await ApiClient.getUnreadCount()
+      if (response.success) {
+        return response.count || 0
+      } else {
+        return 0
+      }
     } catch (error) {
       console.error("Get unread count error:", error)
       return 0
+    }
+  }
+
+  static async toggleEscalation(conversationId: string, action: 'escalate' | 'deescalate', reason?: string): Promise<void> {
+    try {
+      const response = await ApiClient.toggleEscalation(conversationId, {
+        action,
+        reason: reason || (action === 'escalate' ? 'Manual escalation by admin' : 'Escalation resolved')
+      })
+      
+      if (!response.success) {
+        throw new Error(response.error || "Failed to toggle escalation")
+      }
+    } catch (error) {
+      console.error("Toggle escalation error:", error)
+      throw new Error("Erreur lors du changement d'escalade")
     }
   }
 

@@ -8,6 +8,8 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useNotificationStore } from "@/store/use-notification-store"
 import { useProvidersData } from "@/hooks/use-providers-data"
+import { providersService } from "@/lib/services/providers-service"
+import type { CreateProviderData } from "@/lib/services/providers-service"
 
 const ModalOverlay = styled(motion.div)`
   position: fixed;
@@ -157,6 +159,8 @@ const Button = styled.button.withConfig({
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  disabled: cursor: not-allowed;
+  opacity: ${props => props.disabled ? 0.6 : 1};
 
   ${(props) => {
     switch (props.variant) {
@@ -174,7 +178,7 @@ const Button = styled.button.withConfig({
     }
   }}
 
-  &:hover {
+  &:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: var(--shadow);
   }
@@ -182,6 +186,21 @@ const Button = styled.button.withConfig({
   svg {
     width: 1rem;
     height: 1rem;
+  }
+`
+
+const LoadingSpinner = styled.div`
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 `
 
@@ -193,11 +212,11 @@ interface EditProviderModalProps {
 
 export function EditProviderModal({ isOpen, onClose, providerId }: EditProviderModalProps) {
   const { addNotification } = useNotificationStore()
-  const { data: providers } = useProvidersData()
+  const { data: providers, mutate } = useProvidersData()
 
-  const provider = providers?.find((p) => p.id === providerId)
+  const provider = providers?.data?.find((p) => p.id === providerId)
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CreateProviderData>({
     name: "",
     phone: "",
     whatsapp: "",
@@ -208,6 +227,9 @@ export function EditProviderModal({ isOpen, onClose, providerId }: EditProviderM
     experience: "",
     description: "",
   })
+
+  const [isLoading, setIsLoading] = useState(false)
+  const [errors, setErrors] = useState<Partial<CreateProviderData>>({})
 
   useEffect(() => {
     if (provider) {
@@ -223,48 +245,119 @@ export function EditProviderModal({ isOpen, onClose, providerId }: EditProviderM
         description: provider.description || "",
       })
     }
+    // Clear errors when modal opens
+    setErrors({})
   }, [provider])
+
+  const validateForm = (): boolean => {
+    const newErrors: Partial<CreateProviderData> = {}
+
+    if (!formData.name.trim()) {
+      newErrors.name = "Le nom est requis"
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = "Le numéro de téléphone est requis"
+    }
+
+    if (!formData.services.trim()) {
+      newErrors.services = "Les services sont requis"
+    }
+
+    if (!formData.coverage.trim()) {
+      newErrors.coverage = "Les zones de couverture sont requises"
+    }
+
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Format d'email invalide"
+    }
+
+    if (formData.rate && (isNaN(Number(formData.rate)) || Number(formData.rate) < 0)) {
+      newErrors.rate = "Le tarif doit être un nombre positif"
+    }
+
+    if (formData.experience && (isNaN(Number(formData.experience)) || Number(formData.experience) < 0)) {
+      newErrors.experience = "L'expérience doit être un nombre positif"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    try {
-      const response = await fetch(`/api/providers/${providerId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      })
-
-      if (response.ok) {
-        addNotification({
-          id: Date.now().toString(),
-          type: "success",
-          title: "Prestataire modifié",
-          message: `${formData.name} a été modifié avec succès`,
-          timestamp: new Date(),
-          read: false,
-        })
-
-        onClose()
-      } else {
-        throw new Error("Erreur lors de la modification")
-      }
-    } catch (error) {
+    if (!providerId) {
       addNotification({
         id: Date.now().toString(),
         type: "error",
         title: "Erreur",
-        message: "Impossible de modifier le prestataire",
+        message: "ID du prestataire manquant",
         timestamp: new Date(),
         read: false,
       })
+      return
+    }
+
+    if (!validateForm()) {
+      addNotification({
+        id: Date.now().toString(),
+        type: "error",
+        title: "Erreur de validation",
+        message: "Veuillez corriger les erreurs dans le formulaire",
+        timestamp: new Date(),
+        read: false,
+      })
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      await providersService.updateProvider(providerId, formData)
+
+      addNotification({
+        id: Date.now().toString(),
+        type: "success",
+        title: "Prestataire modifié",
+        message: `${formData.name} a été modifié avec succès`,
+        timestamp: new Date(),
+        read: false,
+      })
+
+      // Refresh the providers data
+      mutate()
+
+      onClose()
+    } catch (error) {
+      console.error("Error updating provider:", error)
+      
+      addNotification({
+        id: Date.now().toString(),
+        type: "error",
+        title: "Erreur",
+        message: error instanceof Error ? error.message : "Impossible de modifier le prestataire",
+        timestamp: new Date(),
+        read: false,
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: keyof CreateProviderData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+    
+    // Clear error for this field when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }))
+    }
+  }
+
+  const handleClose = () => {
+    if (!isLoading) {
+      onClose()
+    }
   }
 
   if (!provider) {
@@ -274,7 +367,12 @@ export function EditProviderModal({ isOpen, onClose, providerId }: EditProviderM
   return (
     <AnimatePresence>
       {isOpen && (
-        <ModalOverlay initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+        <ModalOverlay 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
+          exit={{ opacity: 0 }} 
+          onClick={handleClose}
+        >
           <ModalContent
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -283,7 +381,7 @@ export function EditProviderModal({ isOpen, onClose, providerId }: EditProviderM
           >
             <ModalHeader>
               <ModalTitle>Modifier le Prestataire</ModalTitle>
-              <CloseBtn onClick={onClose}>
+              <CloseBtn onClick={handleClose} disabled={isLoading}>
                 <X />
               </CloseBtn>
             </ModalHeader>
@@ -293,29 +391,35 @@ export function EditProviderModal({ isOpen, onClose, providerId }: EditProviderM
                 <FormGroup>
                   <FormLabel>
                     <User />
-                    Nom complet
+                    Nom complet *
                   </FormLabel>
                   <FormInput
                     type="text"
                     placeholder="Nom et prénom"
                     value={formData.name}
                     onChange={(e) => handleChange("name", e.target.value)}
+                    disabled={isLoading}
+                    style={{ borderColor: errors.name ? '#ef4444' : undefined }}
                     required
                   />
+                  {errors.name && <span style={{ color: '#ef4444', fontSize: '0.8rem' }}>{errors.name}</span>}
                 </FormGroup>
 
                 <FormGroup>
                   <FormLabel>
                     <Phone />
-                    Numéro de téléphone
+                    Numéro de téléphone *
                   </FormLabel>
                   <FormInput
                     type="tel"
                     placeholder="+237 6XX XXX XXX"
                     value={formData.phone}
                     onChange={(e) => handleChange("phone", e.target.value)}
+                    disabled={isLoading}
+                    style={{ borderColor: errors.phone ? '#ef4444' : undefined }}
                     required
                   />
+                  {errors.phone && <span style={{ color: '#ef4444', fontSize: '0.8rem' }}>{errors.phone}</span>}
                 </FormGroup>
 
                 <FormGroup>
@@ -328,7 +432,7 @@ export function EditProviderModal({ isOpen, onClose, providerId }: EditProviderM
                     placeholder="ID WhatsApp"
                     value={formData.whatsapp}
                     onChange={(e) => handleChange("whatsapp", e.target.value)}
-                    required
+                    disabled={isLoading}
                   />
                 </FormGroup>
 
@@ -342,35 +446,44 @@ export function EditProviderModal({ isOpen, onClose, providerId }: EditProviderM
                     placeholder="email@example.com"
                     value={formData.email}
                     onChange={(e) => handleChange("email", e.target.value)}
+                    disabled={isLoading}
+                    style={{ borderColor: errors.email ? '#ef4444' : undefined }}
                   />
+                  {errors.email && <span style={{ color: '#ef4444', fontSize: '0.8rem' }}>{errors.email}</span>}
                 </FormGroup>
 
                 <FormGroup fullWidth>
                   <FormLabel>
                     <Briefcase />
-                    Spécialités (séparées par des virgules)
+                    Spécialités (séparées par des virgules) *
                   </FormLabel>
                   <FormInput
                     type="text"
                     placeholder="Plomberie, Électricité, Réparation..."
                     value={formData.services}
                     onChange={(e) => handleChange("services", e.target.value)}
+                    disabled={isLoading}
+                    style={{ borderColor: errors.services ? '#ef4444' : undefined }}
                     required
                   />
+                  {errors.services && <span style={{ color: '#ef4444', fontSize: '0.8rem' }}>{errors.services}</span>}
                 </FormGroup>
 
                 <FormGroup fullWidth>
                   <FormLabel>
                     <MapPin />
-                    Zones de couverture (séparées par des virgules)
+                    Zones de couverture (séparées par des virgules) *
                   </FormLabel>
                   <FormInput
                     type="text"
                     placeholder="Bonamoussadi Centre, Bonamoussadi Nord..."
                     value={formData.coverage}
                     onChange={(e) => handleChange("coverage", e.target.value)}
+                    disabled={isLoading}
+                    style={{ borderColor: errors.coverage ? '#ef4444' : undefined }}
                     required
                   />
+                  {errors.coverage && <span style={{ color: '#ef4444', fontSize: '0.8rem' }}>{errors.coverage}</span>}
                 </FormGroup>
 
                 <FormGroup>
@@ -384,7 +497,10 @@ export function EditProviderModal({ isOpen, onClose, providerId }: EditProviderM
                     min="0"
                     value={formData.rate}
                     onChange={(e) => handleChange("rate", e.target.value)}
+                    disabled={isLoading}
+                    style={{ borderColor: errors.rate ? '#ef4444' : undefined }}
                   />
+                  {errors.rate && <span style={{ color: '#ef4444', fontSize: '0.8rem' }}>{errors.rate}</span>}
                 </FormGroup>
 
                 <FormGroup>
@@ -398,7 +514,10 @@ export function EditProviderModal({ isOpen, onClose, providerId }: EditProviderM
                     min="0"
                     value={formData.experience}
                     onChange={(e) => handleChange("experience", e.target.value)}
+                    disabled={isLoading}
+                    style={{ borderColor: errors.experience ? '#ef4444' : undefined }}
                   />
+                  {errors.experience && <span style={{ color: '#ef4444', fontSize: '0.8rem' }}>{errors.experience}</span>}
                 </FormGroup>
 
                 <FormGroup fullWidth>
@@ -410,16 +529,24 @@ export function EditProviderModal({ isOpen, onClose, providerId }: EditProviderM
                     placeholder="Décrivez brièvement le prestataire et ses compétences..."
                     value={formData.description}
                     onChange={(e) => handleChange("description", e.target.value)}
+                    disabled={isLoading}
                   />
                 </FormGroup>
               </FormGrid>
 
               <FormActions>
-                <Button type="button" onClick={onClose}>
+                <Button type="button" onClick={handleClose} disabled={isLoading}>
                   Annuler
                 </Button>
-                <Button type="submit" variant="primary">
-                  Sauvegarder les modifications
+                <Button type="submit" variant="primary" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <LoadingSpinner />
+                      Sauvegarde...
+                    </>
+                  ) : (
+                    "Sauvegarder les modifications"
+                  )}
                 </Button>
               </FormActions>
             </form>

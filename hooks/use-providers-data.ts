@@ -1,55 +1,73 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { providersService, type Provider } from "@/lib/services/providers-service"
+import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import { logger } from "@/lib/logger"
 
-export interface ProvidersFilters {
-  search: string
-  status: string
+interface ProvidersFilters {
+  page?: number
+  limit?: number
+  search?: string
+  service?: string
+  location?: string
+  status?: string
+  rating?: number
+  specialty?: string
+  zone?: string
+}
+
+interface Provider {
+  id: string
+  name: string
+  phone: string
+  whatsapp?: string
+  email?: string
+  services: string[]
+  coverageAreas: string[]
+  rating: number
+  reviewCount: number
+  totalMissions: number
+  status: "active" | "inactive" | "suspended"
+  availability: "available" | "busy" | "offline"
   specialty: string
   zone: string
-  minRating: string
-  sortBy?: "name" | "rating" | "missions" | "joinDate"
-  sortOrder?: "asc" | "desc"
+  joinDate: string
+  lastActivity: string
+  hourlyRate?: number
+  experience?: number
+  profileImage?: string
+  description?: string
 }
 
-export interface ProvidersPagination {
-  page: number
-  totalPages: number
-  total: number
-  startIndex: number
-  endIndex: number
-  hasNextPage: boolean
-  hasPrevPage: boolean
+interface ApiResponse {
+  success: boolean
+  data: Provider[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+    hasNext: boolean
+    hasPrev: boolean
+  }
+  stats: {
+    total: number
+    active: number
+    inactive: number
+    suspended: number
+    available: number
+    avgRating: number
+    newThisMonth: number
+  }
+  error?: string
+  message?: string
 }
 
-export interface ProvidersStats {
-  total: number
-  active: number
-  inactive: number
-  suspended: number
-  available: number
-  avgRating: number
-  newThisMonth: number
-  topPerformers: Provider[]
-}
-
-export function useProvidersData(filters: ProvidersFilters, page: number, pageSize: number) {
-  const [data, setData] = useState<Provider[]>([])
-  const [stats, setStats] = useState<ProvidersStats | null>(null)
+export function useProvidersData(filters: ProvidersFilters = {}) {
+  const [data, setData] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [pagination, setPagination] = useState<ProvidersPagination>({
-    page: 1,
-    totalPages: 1,
-    total: 0,
-    startIndex: 0,
-    endIndex: 0,
-    hasNextPage: false,
-    hasPrevPage: false,
-  })
   const { toast } = useToast()
 
   const fetchData = useCallback(async () => {
@@ -57,39 +75,26 @@ export function useProvidersData(filters: ProvidersFilters, page: number, pageSi
       setLoading(true)
       setError(null)
 
-      const params = {
-        page,
-        limit: pageSize,
-        search: filters.search || undefined,
-        status: filters.status || undefined,
-        specialty: filters.specialty || undefined,
-        zone: filters.zone || undefined,
-        minRating: filters.minRating ? Number.parseFloat(filters.minRating) : undefined,
-        sortBy: filters.sortBy || "name",
-        sortOrder: filters.sortOrder || "asc",
+      console.log("🔄 Fetching providers with filters:", filters)
+
+      // Call the API with proper error handling
+      const result = await apiClient.getProviders(filters)
+
+      console.log("📦 API Response:", result)
+
+      if (result.success) {
+        setData(result)
+        console.log("✅ Providers data set successfully")
+      } else {
+        const errorMessage = result.error || "Failed to fetch providers data"
+        throw new Error(errorMessage)
       }
-
-      const result = await providersService.getProviders(params)
-
-      setData(result.providers)
-      setStats(result.stats)
-
-      // Calculate pagination
-      const calculatedPagination: ProvidersPagination = {
-        page: result.pagination.page,
-        totalPages: result.pagination.totalPages,
-        total: result.total,
-        startIndex: (result.pagination.page - 1) * pageSize + 1,
-        endIndex: Math.min(result.pagination.page * pageSize, result.total),
-        hasNextPage: result.pagination.hasNext,
-        hasPrevPage: result.pagination.hasPrev,
-      }
-
-      setPagination(calculatedPagination)
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erreur lors du chargement des données"
+      const message = err instanceof Error ? err.message : "Erreur lors du chargement des prestataires"
       setError(message)
-      logger.error("Failed to fetch providers", { error: err, filters, page, pageSize })
+      console.error("❌ Failed to fetch providers data:", { error: err, filters })
+      
+      logger.error("Failed to fetch providers data", { error: err, filters })
 
       toast({
         title: "Erreur",
@@ -99,32 +104,40 @@ export function useProvidersData(filters: ProvidersFilters, page: number, pageSi
     } finally {
       setLoading(false)
     }
-  }, [filters, page, pageSize, toast])
+  }, [JSON.stringify(filters)])
 
   useEffect(() => {
+    console.log("🚀 useEffect triggered, calling fetchData")
     fetchData()
   }, [fetchData])
 
   const refetch = useCallback(() => {
+    console.log("🔄 Manual refetch triggered")
     fetchData()
   }, [fetchData])
 
   const createProvider = useCallback(
-    async (providerData: Omit<Provider, "id" | "joinDate" | "lastActivity">) => {
+    async (providerData: any) => {
       try {
         setLoading(true)
-        await providersService.createProvider(providerData)
-        await fetchData() // Refresh data after creation
-
-        toast({
-          title: "Succès",
-          description: "Prestataire créé avec succès",
-          variant: "default",
-        })
+        console.log("➕ Creating provider:", providerData)
+        
+        const result = await apiClient.createProvider(providerData)
+        
+        if (result.success) {
+          toast({
+            title: "Succès",
+            description: "Prestataire créé avec succès",
+          })
+          await refetch() // Refresh data after creation
+          return result.data
+        } else {
+          throw new Error(result.error || "Failed to create provider")
+        }
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Erreur lors de la création"
-        logger.error("Failed to create provider", { error: err, providerData })
-
+        const message = err instanceof Error ? err.message : "Erreur lors de la création du prestataire"
+        console.error("❌ Failed to create provider:", err)
+        
         toast({
           title: "Erreur",
           description: message,
@@ -135,25 +148,31 @@ export function useProvidersData(filters: ProvidersFilters, page: number, pageSi
         setLoading(false)
       }
     },
-    [fetchData, toast],
+    [refetch],
   )
 
   const updateProvider = useCallback(
-    async (id: string, updates: Partial<Provider>) => {
+    async (id: string, providerData: any) => {
       try {
         setLoading(true)
-        await providersService.updateProvider(id, updates)
-        await fetchData() // Refresh data after update
-
-        toast({
-          title: "Succès",
-          description: "Prestataire mis à jour avec succès",
-          variant: "default",
-        })
+        console.log("✏️ Updating provider:", { id, data: providerData })
+        
+        const result = await apiClient.updateProvider(id, providerData)
+        
+        if (result.success) {
+          toast({
+            title: "Succès",
+            description: "Prestataire mis à jour avec succès",
+          })
+          await refetch() // Refresh data after update
+          return result.data
+        } else {
+          throw new Error(result.error || "Failed to update provider")
+        }
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Erreur lors de la mise à jour"
-        logger.error("Failed to update provider", { error: err, id, updates })
-
+        const message = err instanceof Error ? err.message : "Erreur lors de la mise à jour du prestataire"
+        console.error("❌ Failed to update provider:", err)
+        
         toast({
           title: "Erreur",
           description: message,
@@ -164,25 +183,31 @@ export function useProvidersData(filters: ProvidersFilters, page: number, pageSi
         setLoading(false)
       }
     },
-    [fetchData, toast],
+    [refetch],
   )
 
   const deleteProvider = useCallback(
     async (id: string) => {
       try {
         setLoading(true)
-        await providersService.deleteProvider(id)
-        await fetchData() // Refresh data after deletion
-
-        toast({
-          title: "Succès",
-          description: "Prestataire supprimé avec succès",
-          variant: "default",
-        })
+        console.log("🗑️ Deleting provider:", id)
+        
+        const result = await apiClient.deleteProvider(id)
+        
+        if (result.success) {
+          toast({
+            title: "Succès",
+            description: "Prestataire supprimé avec succès",
+          })
+          await refetch() // Refresh data after deletion
+          return result.data
+        } else {
+          throw new Error(result.error || "Failed to delete provider")
+        }
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Erreur lors de la suppression"
-        logger.error("Failed to delete provider", { error: err, id })
-
+        const message = err instanceof Error ? err.message : "Erreur lors de la suppression du prestataire"
+        console.error("❌ Failed to delete provider:", err)
+        
         toast({
           title: "Erreur",
           description: message,
@@ -193,45 +218,26 @@ export function useProvidersData(filters: ProvidersFilters, page: number, pageSi
         setLoading(false)
       }
     },
-    [fetchData, toast],
+    [refetch],
   )
 
-  const updateProviderStatus = useCallback(
-    async (id: string, status: Provider["status"]) => {
-      try {
-        await providersService.updateProviderStatus(id, status)
-        await fetchData() // Refresh data after status update
-
-        toast({
-          title: "Succès",
-          description: `Statut du prestataire mis à jour: ${status}`,
-          variant: "default",
-        })
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Erreur lors de la mise à jour du statut"
-        logger.error("Failed to update provider status", { error: err, id, status })
-
-        toast({
-          title: "Erreur",
-          description: message,
-          variant: "destructive",
-        })
-        throw err
-      }
-    },
-    [fetchData, toast],
-  )
+  // Log current state for debugging
+  useEffect(() => {
+    console.log("📊 Hook state:", { 
+      hasData: !!data, 
+      loading, 
+      error, 
+      providersCount: data?.data?.length || 0 
+    })
+  }, [data, loading, error])
 
   return {
     data,
-    stats,
-    pagination,
     loading,
     error,
     refetch,
     createProvider,
     updateProvider,
     deleteProvider,
-    updateProviderStatus,
   }
 }

@@ -29,6 +29,8 @@ import {
   XCircle,
   Search,
   MoreHorizontal,
+  Monitor,
+  Terminal,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -674,6 +676,42 @@ export default function AdminSettingsPage() {
                 </Card>
               </div>
             )}
+
+            {/* Quick Actions & Advanced Tools */}
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold text-white mb-4">Outils d'Administration Avancés</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Link href="/admin/system-monitor">
+                  <Card className="bg-black/40 backdrop-blur-sm border-white/10 hover:bg-white/10 transition-colors cursor-pointer">
+                    <CardContent className="p-4 text-center">
+                      <Monitor className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+                      <h3 className="text-white font-medium mb-1">Monitoring Système</h3>
+                      <p className="text-xs text-gray-400">Surveillance temps réel du serveur et des services</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+                
+                <Link href="/admin/api-logs">
+                  <Card className="bg-black/40 backdrop-blur-sm border-white/10 hover:bg-white/10 transition-colors cursor-pointer">
+                    <CardContent className="p-4 text-center">
+                      <Terminal className="w-8 h-8 text-green-400 mx-auto mb-2" />
+                      <h3 className="text-white font-medium mb-1">Logs API</h3>
+                      <p className="text-xs text-gray-400">Visualisation en temps réel des requêtes API</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+                
+                <Link href="/admin/database-health">
+                  <Card className="bg-black/40 backdrop-blur-sm border-white/10 hover:bg-white/10 transition-colors cursor-pointer">
+                    <CardContent className="p-4 text-center">
+                      <Database className="w-8 h-8 text-purple-400 mx-auto mb-2" />
+                      <h3 className="text-white font-medium mb-1">Santé BD</h3>
+                      <p className="text-xs text-gray-400">Monitoring et maintenance de la base de données</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </div>
+            </div>
           </motion.div>
 
           <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">

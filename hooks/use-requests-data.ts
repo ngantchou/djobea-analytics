@@ -1,260 +1,560 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { RequestsService } from "@/lib/services/requests-service"
+import type { ServiceRequest, RequestFilters, CreateRequestData, UpdateRequestData, AssignRequestData } from "@/lib/services/requests-service"
 import { useToast } from "@/hooks/use-toast"
+import { logger } from "@/lib/logger"
 
-export interface Request {
-  id: string
-  clientName: string
-  clientPhone: string
-  clientEmail: string
-  serviceType: string
-  description: string
-  location: string
-  address: string
-  priority: "low" | "normal" | "high" | "urgent"
-  status: "pending" | "assigned" | "in-progress" | "completed" | "cancelled"
-  createdAt: string
-  updatedAt: string
-  scheduledDate?: string
-  completedDate?: string
-  assignedProvider?: {
-    id: string
-    name: string
-    rating: number
-  }
-  estimatedCost: number
-  finalCost?: number
-  rating?: number
-  feedback?: string
-  urgency: boolean
-  images?: string[]
-  notes?: string
+interface RequestsFilters extends RequestFilters {
+  page?: number
+  limit?: number
+  search?: string
+  serviceType?: string
+  location?: string
+  priority?: string
+  status?: string
+  dateRange?: string
 }
 
-export interface RequestsStats {
+interface RequestsData {
+  requests: ServiceRequest[]
   total: number
-  pending: number
-  assigned: number
-  inProgress: number
-  completed: number
-  cancelled: number
-  avgResponseTime: string
-  completionRate: number
-}
-
-export interface RequestsFilters {
   page: number
-  limit: number
-  search: string
-  status: string
-  priority: string
-  service: string
-  zone: string
-  dateRange: string
-}
-
-export interface RequestsPagination {
-  page: number
-  limit: number
-  total: number
   totalPages: number
+  stats?: {
+    total: number
+    pending: number
+    assigned: number
+    inProgress: number
+    completed: number
+    cancelled: number
+    avgResponseTime?: string
+    completionRate?: number
+  }
 }
 
-export function useRequestsData(filters: RequestsFilters) {
-  const { toast } = useToast()
-  const [requests, setRequests] = useState<Request[]>([])
-  const [stats, setStats] = useState<RequestsStats | null>(null)
+export function useRequestsData(filters: RequestsFilters = {}) {
+  const [data, setData] = useState<RequestsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [pagination, setPagination] = useState<RequestsPagination>({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  })
+  const { toast } = useToast()
 
-  const fetchRequests = useCallback(async () => {
+  // Transform filters to match service expectations
+  const transformFilters = useCallback((filters: RequestsFilters): RequestFilters => {
+    const {
+      page,
+      limit,
+      search,
+      serviceType,
+      location,
+      priority,
+      status,
+      dateRange,
+      ...restFilters
+    } = filters
+
+    const transformedFilters: RequestFilters = {
+      ...restFilters,
+    }
+
+    // Transform status string to array if provided
+    if (status && status !== "all") {
+      transformedFilters.status = [status]
+    }
+
+    // Transform priority string to array if provided
+    if (priority && priority !== "all") {
+      transformedFilters.priority = [priority]
+    }
+
+    // Transform serviceType to category array if provided
+    if (serviceType && serviceType !== "all") {
+      transformedFilters.category = [serviceType]
+    }
+
+    // Transform location string to location filter
+    if (location && location !== "all") {
+      transformedFilters.location = location
+    }
+
+    // Transform dateRange string to date range object
+    if (dateRange && dateRange !== "all") {
+      const today = new Date()
+      let start: string, end: string
+      
+      switch (dateRange) {
+        case "today":
+          start = today.toISOString().split('T')[0]
+          end = start
+          break
+        case "week":
+          const weekStart = new Date(today)
+          weekStart.setDate(today.getDate() - today.getDay())
+          start = weekStart.toISOString().split('T')[0]
+          end = today.toISOString().split('T')[0]
+          break
+        case "month":
+          start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
+          end = today.toISOString().split('T')[0]
+          break
+        case "quarter":
+          const quarter = Math.floor(today.getMonth() / 3)
+          start = new Date(today.getFullYear(), quarter * 3, 1).toISOString().split('T')[0]
+          end = today.toISOString().split('T')[0]
+          break
+        default:
+          break
+      }
+      
+      if (start! && end!) {
+        transformedFilters.dateRange = { start, end }
+      }
+    }
+
+    // Handle search by adding it to the filters (service should handle search logic)
+    if (search && search.trim()) {
+      transformedFilters.search = search.trim()
+    }
+
+    return transformedFilters
+  }, [])
+
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const searchParams = new URLSearchParams({
-        page: filters.page.toString(),
-        limit: filters.limit.toString(),
-        search: filters.search,
-        status: filters.status,
-        priority: filters.priority,
-        serviceType: filters.service,
-        location: filters.zone,
-        dateRange: filters.dateRange,
+      const transformedFilters = transformFilters(filters)
+      const page = filters.page || 1
+      const limit = filters.limit || 20
+
+      const result = await RequestsService.getRequests(transformedFilters, page, limit)
+
+      setData({
+        requests: result.requests,
+        total: result.total,
+        page: result.page,
+        totalPages: result.totalPages,
+        stats: result.stats, // Include stats from the API response
       })
 
-      const response = await fetch(`/api/requests?${searchParams}`)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      setRequests(data.data || [])
-      setStats(data.stats || null)
-      setPagination(data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 })
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Une erreur est survenue"
-      setError(errorMessage)
+      const message = err instanceof Error ? err.message : "Erreur lors du chargement des demandes"
+      setError(message)
+      logger.error("Failed to fetch requests data", { error: err, filters })
+
       toast({
         title: "Erreur",
-        description: "Impossible de charger les demandes",
+        description: message,
         variant: "destructive",
       })
     } finally {
       setLoading(false)
     }
-  }, [filters, toast])
+  }, [JSON.stringify(filters), toast, transformFilters])
 
-  const updateRequest = useCallback(
-    async (id: string, updates: Partial<Request>) => {
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const refetch = useCallback(() => {
+    fetchData()
+  }, [fetchData])
+
+  const createRequest = useCallback(
+    async (requestData: CreateRequestData) => {
       try {
-        const response = await fetch(`/api/requests/${id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(updates),
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const updatedRequest = await response.json()
-
-        setRequests((prev) => prev.map((request) => (request.id === id ? { ...request, ...updatedRequest } : request)))
-
+        const result = await RequestsService.createRequest(requestData)
+        
         toast({
-          title: "Demande mise à jour",
-          description: "Les modifications ont été enregistrées avec succès.",
+          title: "Succès",
+          description: "Demande créée avec succès",
         })
+        
+        refetch()
+        return result
       } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de la création de la demande"
         toast({
           title: "Erreur",
-          description: "Impossible de mettre à jour la demande",
+          description: message,
           variant: "destructive",
         })
+        throw err
       }
     },
-    [toast],
+    [toast, refetch],
+  )
+
+  const updateRequest = useCallback(
+    async (id: string, requestData: UpdateRequestData) => {
+      try {
+        const result = await RequestsService.updateRequest(id, requestData)
+        
+        toast({
+          title: "Succès",
+          description: "Demande mise à jour avec succès",
+        })
+        
+        refetch()
+        return result
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de la mise à jour de la demande"
+        toast({
+          title: "Erreur",
+          description: message,
+          variant: "destructive",
+        })
+        throw err
+      }
+    },
+    [toast, refetch],
   )
 
   const assignRequest = useCallback(
-    async (requestId: string, providerId: string, providerName: string) => {
+    async (id: string, assignData: AssignRequestData) => {
       try {
-        const response = await fetch(`/api/requests/${requestId}/assign`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ providerId }),
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const result = await response.json()
-
-        setRequests((prev) =>
-          prev.map((request) =>
-            request.id === requestId
-              ? {
-                  ...request,
-                  status: "assigned",
-                  assignedProvider: { id: providerId, name: providerName, rating: 4.5 },
-                  updatedAt: new Date().toISOString(),
-                }
-              : request,
-          ),
-        )
-
+        const result = await RequestsService.assignRequest(id, assignData)
+        
         toast({
-          title: "Demande assignée",
-          description: `La demande a été assignée à ${providerName}`,
+          title: "Succès",
+          description: "Demande assignée avec succès",
         })
+        
+        refetch()
+        return result
       } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de l'assignation de la demande"
         toast({
           title: "Erreur",
-          description: "Impossible d'assigner la demande",
+          description: message,
           variant: "destructive",
         })
+        throw err
       }
     },
-    [toast],
+    [toast, refetch],
   )
 
   const cancelRequest = useCallback(
-    async (requestId: string, reason: string) => {
+    async (id: string, reason: string) => {
       try {
-        const response = await fetch(`/api/requests/${requestId}/cancel`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ reason }),
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const result = await response.json()
-
-        setRequests((prev) =>
-          prev.map((request) =>
-            request.id === requestId
-              ? {
-                  ...request,
-                  status: "cancelled",
-                  notes: reason,
-                  updatedAt: new Date().toISOString(),
-                }
-              : request,
-          ),
-        )
-
+        const result = await RequestsService.cancelRequest(id, reason)
+        
         toast({
-          title: "Demande annulée",
-          description: "La demande a été annulée avec succès",
+          title: "Succès",
+          description: "Demande annulée avec succès",
         })
+        
+        refetch()
+        return result
       } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de l'annulation de la demande"
         toast({
           title: "Erreur",
-          description: "Impossible d'annuler la demande",
+          description: message,
           variant: "destructive",
         })
+        throw err
+      }
+    },
+    [toast, refetch],
+  )
+
+  const updateStatus = useCallback(
+    async (id: string, status: "pending" | "assigned" | "in-progress" | "completed" | "cancelled", notes?: string) => {
+      try {
+        const result = await RequestsService.updateStatus(id, status, notes)
+        
+        toast({
+          title: "Succès",
+          description: "Statut mis à jour avec succès",
+        })
+        
+        refetch()
+        return result
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de la mise à jour du statut"
+        toast({
+          title: "Erreur",
+          description: message,
+          variant: "destructive",
+        })
+        throw err
+      }
+    },
+    [toast, refetch],
+  )
+
+  const deleteRequest = useCallback(
+    async (id: string) => {
+      try {
+        await RequestsService.deleteRequest(id)
+        
+        toast({
+          title: "Succès",
+          description: "Demande supprimée avec succès",
+        })
+        
+        refetch()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de la suppression de la demande"
+        toast({
+          title: "Erreur",
+          description: message,
+          variant: "destructive",
+        })
+        throw err
+      }
+    },
+    [toast, refetch],
+  )
+
+  const duplicateRequest = useCallback(
+    async (id: string) => {
+      try {
+        const result = await RequestsService.duplicateRequest(id)
+        
+        toast({
+          title: "Succès",
+          description: "Demande dupliquée avec succès",
+        })
+        
+        refetch()
+        return result
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de la duplication de la demande"
+        toast({
+          title: "Erreur",
+          description: message,
+          variant: "destructive",
+        })
+        throw err
+      }
+    },
+    [toast, refetch],
+  )
+
+  const uploadAttachment = useCallback(
+    async (requestId: string, file: File) => {
+      try {
+        const url = await RequestsService.uploadAttachment(requestId, file)
+        
+        toast({
+          title: "Succès",
+          description: "Pièce jointe uploadée avec succès",
+        })
+        
+        refetch()
+        return url
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de l'upload de la pièce jointe"
+        toast({
+          title: "Erreur",
+          description: message,
+          variant: "destructive",
+        })
+        throw err
+      }
+    },
+    [toast, refetch],
+  )
+
+  const removeAttachment = useCallback(
+    async (requestId: string, attachmentUrl: string) => {
+      try {
+        await RequestsService.removeAttachment(requestId, attachmentUrl)
+        
+        toast({
+          title: "Succès",
+          description: "Pièce jointe supprimée avec succès",
+        })
+        
+        refetch()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de la suppression de la pièce jointe"
+        toast({
+          title: "Erreur",
+          description: message,
+          variant: "destructive",
+        })
+        throw err
+      }
+    },
+    [toast, refetch],
+  )
+
+  const contactProvider = useCallback(
+    async (id: string, message: string) => {
+      try {
+        await RequestsService.contactProvider(id, message)
+        
+        toast({
+          title: "Succès",
+          description: "Message envoyé au prestataire",
+        })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de l'envoi du message"
+        toast({
+          title: "Erreur",
+          description: message,
+          variant: "destructive",
+        })
+        throw err
       }
     },
     [toast],
   )
 
-  const refetch = useCallback(() => {
-    return fetchRequests()
-  }, [fetchRequests])
+  const generateInvoice = useCallback(
+    async (id: string) => {
+      try {
+        const blob = await RequestsService.generateInvoice(id)
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `facture-demande-${id}.pdf`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        
+        toast({
+          title: "Succès",
+          description: "Facture générée et téléchargée",
+        })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de la génération de la facture"
+        toast({
+          title: "Erreur",
+          description: message,
+          variant: "destructive",
+        })
+        throw err
+      }
+    },
+    [toast],
+  )
 
-  useEffect(() => {
-    fetchRequests()
-  }, [fetchRequests])
+  const exportRequests = useCallback(
+    async (format: "csv" | "xlsx" | "pdf" = "csv") => {
+      try {
+        const transformedFilters = transformFilters(filters)
+        const blob = await RequestsService.exportRequests(transformedFilters, format)
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `demandes.${format}`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        
+        toast({
+          title: "Succès",
+          description: "Export téléchargé avec succès",
+        })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de l'export"
+        toast({
+          title: "Erreur",
+          description: message,
+          variant: "destructive",
+        })
+        throw err
+      }
+    },
+    [filters, transformFilters, toast],
+  )
+
+  // Utility functions
+  const getRequest = useCallback(
+    async (id: string) => {
+      try {
+        return await RequestsService.getRequest(id)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de la récupération de la demande"
+        toast({
+          title: "Erreur",
+          description: message,
+          variant: "destructive",
+        })
+        throw err
+      }
+    },
+    [toast],
+  )
+
+  const getAvailableProviders = useCallback(
+    async (requestId: string) => {
+      try {
+        return await RequestsService.getAvailableProviders(requestId)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de la récupération des prestataires"
+        toast({
+          title: "Erreur",
+          description: message,
+          variant: "destructive",
+        })
+        throw err
+      }
+    },
+    [toast],
+  )
+
+  const getStats = useCallback(
+    async () => {
+      try {
+        const transformedFilters = transformFilters(filters)
+        return await RequestsService.getRequestStats(transformedFilters)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur lors de la récupération des statistiques"
+        toast({
+          title: "Erreur",
+          description: message,
+          variant: "destructive",
+        })
+        throw err
+      }
+    },
+    [filters, transformFilters, toast],
+  )
 
   return {
-    requests,
-    stats,
+    // Data
+    data,
     loading,
     error,
-    pagination,
+    
+    // Core operations
     refetch,
+    createRequest,
     updateRequest,
     assignRequest,
     cancelRequest,
+    updateStatus,
+    deleteRequest,
+    duplicateRequest,
+    
+    // File operations
+    uploadAttachment,
+    removeAttachment,
+    
+    // Communication
+    contactProvider,
+    
+    // Reports & Export
+    generateInvoice,
+    exportRequests,
+    
+    // Utility functions
+    getRequest,
+    getAvailableProviders,
+    getStats,
   }
 }

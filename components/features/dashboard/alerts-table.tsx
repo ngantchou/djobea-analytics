@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { motion } from "framer-motion"
 import { AlertTriangle, CheckCircle, XCircle, Search, Eye, Archive, Trash2, AlertCircle, Info, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Pagination } from "@/components/ui/pagination"
 import { usePagination } from "@/hooks/use-pagination"
+import { apiClient } from "@/lib/api-client"
+import { logger } from "@/lib/logger"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface Alert {
   id: string
@@ -23,89 +26,6 @@ interface Alert {
   assignee?: string
 }
 
-const mockAlerts: Alert[] = [
-  {
-    id: "1",
-    title: "Erreur de connexion base de données",
-    message: "Impossible de se connecter à la base de données principale",
-    type: "error",
-    priority: "critical",
-    status: "active",
-    source: "Database",
-    timestamp: new Date(Date.now() - 1000 * 60 * 5),
-    assignee: "Admin",
-  },
-  {
-    id: "2",
-    title: "Utilisation CPU élevée",
-    message: "Le serveur principal utilise 85% du CPU",
-    type: "warning",
-    priority: "high",
-    status: "active",
-    source: "System",
-    timestamp: new Date(Date.now() - 1000 * 60 * 15),
-  },
-  {
-    id: "3",
-    title: "Nouvelle demande reçue",
-    message: "Une nouvelle demande de service a été soumise",
-    type: "info",
-    priority: "medium",
-    status: "active",
-    source: "Requests",
-    timestamp: new Date(Date.now() - 1000 * 60 * 30),
-  },
-  {
-    id: "4",
-    title: "Sauvegarde terminée",
-    message: "La sauvegarde quotidienne s'est terminée avec succès",
-    type: "success",
-    priority: "low",
-    status: "resolved",
-    source: "Backup",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60),
-  },
-  {
-    id: "5",
-    title: "Espace disque faible",
-    message: "L'espace disque disponible est inférieur à 10%",
-    type: "warning",
-    priority: "high",
-    status: "active",
-    source: "Storage",
-    timestamp: new Date(Date.now() - 1000 * 60 * 45),
-  },
-  {
-    id: "6",
-    title: "Mise à jour système disponible",
-    message: "Une nouvelle mise à jour de sécurité est disponible",
-    type: "info",
-    priority: "medium",
-    status: "active",
-    source: "Updates",
-    timestamp: new Date(Date.now() - 1000 * 60 * 90),
-  },
-  {
-    id: "7",
-    title: "Tentative de connexion suspecte",
-    message: "Plusieurs tentatives de connexion échouées détectées",
-    type: "error",
-    priority: "critical",
-    status: "active",
-    source: "Security",
-    timestamp: new Date(Date.now() - 1000 * 60 * 10),
-  },
-  {
-    id: "8",
-    title: "Performance réseau dégradée",
-    message: "La latence réseau a augmenté de 200%",
-    type: "warning",
-    priority: "high",
-    status: "active",
-    source: "Network",
-    timestamp: new Date(Date.now() - 1000 * 60 * 20),
-  },
-]
 
 const getAlertIcon = (type: Alert["type"]) => {
   switch (type) {
@@ -162,14 +82,82 @@ const formatTimeAgo = (date: Date) => {
 }
 
 export function AlertsTable() {
+  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
 
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const response = await apiClient.request('/api/system/alerts', {
+          method: 'GET',
+          requireAuth: false
+        })
+        
+        if (response.success && response.data) {
+          setAlerts(response.data)
+        } else {
+          throw new Error('Failed to fetch alerts')
+        }
+      } catch (err) {
+        logger.error('Error fetching alerts:', err)
+        setError(err instanceof Error ? err.message : 'Unknown error')
+        // Set fallback alerts for better UX
+        setAlerts([
+          {
+            id: "1",
+            title: "Système opérationnel",
+            message: "Tous les systèmes fonctionnent normalement",
+            type: "success",
+            priority: "low",
+            status: "active",
+            source: "System",
+            timestamp: new Date(),
+            assignee: "Auto",
+          }
+        ])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchAlerts()
+  }, [])
+
+  const handleAlertAction = async (alertId: string, action: 'resolve' | 'archive' | 'delete') => {
+    try {
+      await apiClient.request(`/api/system/alerts/${alertId}/${action}`, {
+        method: 'POST',
+        requireAuth: false
+      })
+      
+      // Update local state
+      setAlerts(prev => {
+        if (action === 'delete') {
+          return prev.filter(alert => alert.id !== alertId)
+        }
+        return prev.map(alert => 
+          alert.id === alertId 
+            ? { ...alert, status: action === 'resolve' ? 'resolved' : 'archived' as Alert['status'] }
+            : alert
+        )
+      })
+      
+      logger.info(`Alert ${alertId} ${action}ed successfully`)
+    } catch (err) {
+      logger.error(`Error ${action}ing alert:`, err)
+    }
+  }
+
   // Filtrage des alertes
   const filteredAlerts = useMemo(() => {
-    return mockAlerts.filter((alert) => {
+    return alerts.filter((alert) => {
       const matchesSearch =
         alert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         alert.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -199,7 +187,62 @@ export function AlertsTable() {
     endIndex,
   } = usePagination(filteredAlerts, 10)
 
-  const activeAlertsCount = mockAlerts.filter((alert) => alert.status === "active").length
+  const activeAlertsCount = alerts.filter((alert) => alert.status === "active").length
+
+  if (loading) {
+    return (
+      <Card className="bg-slate-900/50 border-slate-700">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-white flex items-center gap-2">
+              <Zap className="w-5 h-5 text-yellow-400" />
+              Alertes Système
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                <div className="flex items-start gap-3 flex-1">
+                  <Skeleton className="h-4 w-4" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className="h-8 w-8" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card className="bg-slate-900/50 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Zap className="w-5 h-5 text-yellow-400" />
+            Alertes Système
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-400 mb-2">Erreur lors du chargement des alertes</p>
+            <p className="text-gray-400 text-sm">{error}</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card className="bg-slate-900/50 border-slate-700">
@@ -297,13 +340,28 @@ export function AlertsTable() {
               </div>
 
               <div className="flex items-center gap-1 ml-4">
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-gray-400 hover:text-white"
+                  onClick={() => logger.info('View alert:', alert.id)}
+                >
                   <Eye className="w-4 h-4" />
                 </Button>
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-gray-400 hover:text-white"
+                  onClick={() => handleAlertAction(alert.id, 'archive')}
+                >
                   <Archive className="w-4 h-4" />
                 </Button>
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-red-400">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-gray-400 hover:text-red-400"
+                  onClick={() => handleAlertAction(alert.id, 'delete')}
+                >
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>

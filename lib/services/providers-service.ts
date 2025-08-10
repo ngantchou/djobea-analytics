@@ -1,5 +1,8 @@
 "use client"
+
 import { logger } from "@/lib/logger"
+import { apiClient } from "@/lib/api-client"
+import type { ApiResponse } from "@/lib/api-client"
 
 export interface Provider {
   id: string
@@ -92,37 +95,83 @@ export interface CreateProviderData {
   description?: string
 }
 
+export interface UpdateProviderData extends CreateProviderData {
+  id?: string
+}
+
+export interface ProviderContactOptions {
+  method: "call" | "whatsapp" | "email"
+  message?: string
+}
+
+export interface AvailableProvidersFilters {
+  serviceType?: string
+  location?: string
+  limit?: number
+  radius?: number
+  urgency?: boolean
+  date?: string
+}
+
 class ProvidersService {
+  private serviceName = "ProvidersService"
+
+  // Helper method to transform form data before sending to API
+  private transformProviderData(data: CreateProviderData) {
+    return {
+      ...data,
+      services: data.services?.split(',').map(s => s.trim()).filter(Boolean) || [],
+      coverageAreas: data.coverage?.split(',').map(s => s.trim()).filter(Boolean) || [],
+      hourlyRate: data.rate ? Number(data.rate) : undefined,
+      experience: data.experience ? Number(data.experience) : undefined,
+    }
+  }
+
+  // Helper method to validate provider data
+  private validateProviderData(data: CreateProviderData): void {
+    if (!data.name?.trim()) {
+      throw new Error("Le nom du prestataire est requis")
+    }
+    
+    if (!data.phone?.trim()) {
+      throw new Error("Le numéro de téléphone est requis")
+    }
+    
+    if (!data.services?.trim()) {
+      throw new Error("Les services sont requis")
+    }
+    
+    if (!data.coverage?.trim()) {
+      throw new Error("Les zones de couverture sont requises")
+    }
+    
+    if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      throw new Error("Format d'email invalide")
+    }
+    
+    if (data.rate && (isNaN(Number(data.rate)) || Number(data.rate) < 0)) {
+      throw new Error("Le tarif doit être un nombre positif")
+    }
+    
+    if (data.experience && (isNaN(Number(data.experience)) || Number(data.experience) < 0)) {
+      throw new Error("L'expérience doit être un nombre positif")
+    }
+  }
+
   async getProviders(filters?: ProvidersFilters): Promise<ProvidersResponse> {
     try {
       logger.info("Fetching providers", { filters })
 
-      const params = new URLSearchParams()
+      const result = await apiClient.getProviders(filters)
 
-      if (filters) {
-        Object.entries(filters).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && value !== "") {
-            params.append(key, value.toString())
-          }
-        })
-      }
-
-      const response = await fetch(`/api/providers?${params}`)
-      const result = await response.json()
-
-      if (!response.ok) {
+      if (!result.success) {
         throw new Error(result.error || "Failed to fetch providers")
       }
 
-      logger.info("Providers fetched successfully", {
-        count: result.data?.length || 0,
-        total: result.pagination?.total || 0,
-      })
-
-      return {
-        providers: result.data || [],
-        total: result.pagination?.total || 0,
-        stats: result.stats || {
+      const response: ProvidersResponse = {
+        providers: result.data?.data || [],
+        total: result.data?.pagination?.total || 0,
+        stats: result.data?.stats || {
           total: 0,
           active: 0,
           inactive: 0,
@@ -132,7 +181,7 @@ class ProvidersService {
           newThisMonth: 0,
           topPerformers: [],
         },
-        pagination: result.pagination || {
+        pagination: result.data?.pagination || {
           page: 1,
           limit: 10,
           totalPages: 1,
@@ -140,6 +189,13 @@ class ProvidersService {
           hasPrev: false,
         },
       }
+
+      logger.info("Providers fetched successfully", {
+        count: response.providers.length,
+        total: response.total,
+      })
+
+      return response
     } catch (error) {
       logger.error("Failed to fetch providers", { error, filters })
       throw error
@@ -150,15 +206,18 @@ class ProvidersService {
     try {
       logger.info("Fetching provider", { id })
 
-      const response = await fetch(`/api/providers/${id}`)
-      const result = await response.json()
+      if (!id) {
+        throw new Error("Provider ID is required")
+      }
 
-      if (!response.ok) {
+      const result = await apiClient.getProvider(id)
+
+      if (!result.success) {
         throw new Error(result.error || "Failed to fetch provider")
       }
 
       logger.info("Provider fetched successfully", { id })
-      return result
+      return result.data as Provider
     } catch (error) {
       logger.error("Failed to fetch provider", { error, id })
       throw error
@@ -169,22 +228,20 @@ class ProvidersService {
     try {
       logger.info("Creating provider", { name: providerData.name })
 
-      const response = await fetch("/api/providers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(providerData),
-      })
+      // Validate data before sending
+      this.validateProviderData(providerData)
 
-      const result = await response.json()
+      // Transform data for API
+      const transformedData = this.transformProviderData(providerData)
 
-      if (!response.ok) {
+      const result = await apiClient.createProvider(transformedData)
+
+      if (!result.success) {
         throw new Error(result.error || "Failed to create provider")
       }
 
-      logger.info("Provider created successfully", { id: result.id })
-      return result
+      logger.info("Provider created successfully", { id: result.data?.id })
+      return result.data as Provider
     } catch (error) {
       logger.error("Failed to create provider", { error, providerData })
       throw error
@@ -195,22 +252,24 @@ class ProvidersService {
     try {
       logger.info("Updating provider", { id, updates })
 
-      const response = await fetch(`/api/providers/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updates),
-      })
+      if (!id) {
+        throw new Error("Provider ID is required")
+      }
 
-      const result = await response.json()
+      // Validate data before sending
+      this.validateProviderData(updates)
 
-      if (!response.ok) {
+      // Transform data for API
+      const transformedData = this.transformProviderData(updates)
+
+      const result = await apiClient.updateProvider(id, transformedData)
+
+      if (!result.success) {
         throw new Error(result.error || "Failed to update provider")
       }
 
       logger.info("Provider updated successfully", { id })
-      return result.data
+      return result.data?.data || result.data as Provider
     } catch (error) {
       logger.error("Failed to update provider", { error, id, updates })
       throw error
@@ -221,13 +280,13 @@ class ProvidersService {
     try {
       logger.info("Deleting provider", { id })
 
-      const response = await fetch(`/api/providers/${id}`, {
-        method: "DELETE",
-      })
+      if (!id) {
+        throw new Error("Provider ID is required")
+      }
 
-      const result = await response.json()
+      const result = await apiClient.deleteProvider(id)
 
-      if (!response.ok) {
+      if (!result.success) {
         throw new Error(result.error || "Failed to delete provider")
       }
 
@@ -242,17 +301,17 @@ class ProvidersService {
     try {
       logger.info("Updating provider status", { id, status })
 
-      const response = await fetch(`/api/providers/${id}/status`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status }),
-      })
+      if (!id) {
+        throw new Error("Provider ID is required")
+      }
 
-      const result = await response.json()
+      if (!status) {
+        throw new Error("Provider status is required")
+      }
 
-      if (!response.ok) {
+      const result = await apiClient.updateProviderStatus(id, status)
+
+      if (!result.success) {
         throw new Error(result.error || "Failed to update provider status")
       }
 
@@ -263,56 +322,51 @@ class ProvidersService {
     }
   }
 
-  async contactProvider(id: string, method: "call" | "whatsapp" | "email", message?: string): Promise<void> {
+  async contactProvider(id: string, options: ProviderContactOptions): Promise<void> {
     try {
-      logger.info("Contacting provider", { id, method })
+      logger.info("Contacting provider", { id, method: options.method })
 
-      const response = await fetch(`/api/providers/${id}/contact`, {
+      if (!id) {
+        throw new Error("Provider ID is required")
+      }
+
+      if (!options.method) {
+        throw new Error("Contact method is required")
+      }
+
+      // Note: This method doesn't exist in apiClient yet, so we'll call it directly
+      // You can add it to apiClient if needed, or keep this direct implementation
+      const result = await apiClient.request(`/api/providers/${id}/contact`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ method, message }),
+        body: options,
       })
 
-      const result = await response.json()
-
-      if (!response.ok) {
+      if (!result.success) {
         throw new Error(result.error || "Failed to contact provider")
       }
 
-      logger.info("Provider contacted successfully", { id, method })
+      logger.info("Provider contacted successfully", { id, method: options.method })
     } catch (error) {
-      logger.error("Failed to contact provider", { error, id, method })
+      logger.error("Failed to contact provider", { error, id, options })
       throw error
     }
   }
 
-  async getAvailableProviders(filters?: {
-    serviceType?: string
-    location?: { lat: number; lng: number; radius?: number }
-    date?: string
-    urgency?: boolean
-  }): Promise<Provider[]> {
+  async getAvailableProviders(filters?: AvailableProvidersFilters): Promise<Provider[]> {
     try {
       logger.info("Fetching available providers", { filters })
 
-      const response = await fetch("/api/providers/available", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(filters || {}),
-      })
+      const result = await apiClient.getAvailableProviders(filters || {})
 
-      const result = await response.json()
-
-      if (!response.ok) {
+      if (!result.success) {
         throw new Error(result.error || "Failed to fetch available providers")
       }
 
-      logger.info("Available providers fetched successfully", { count: result.data?.length || 0 })
-      return result.data || []
+      logger.info("Available providers fetched successfully", { 
+        count: result.data?.data?.length || result.data?.length || 0 
+      })
+      
+      return (result.data?.data || result.data || []) as Provider[]
     } catch (error) {
       logger.error("Failed to fetch available providers", { error, filters })
       throw error
@@ -323,21 +377,109 @@ class ProvidersService {
     try {
       logger.info("Searching providers", { query })
 
-      const response = await fetch(`/api/providers/search?q=${encodeURIComponent(query)}`)
-      const result = await response.json()
+      if (!query?.trim()) {
+        throw new Error("Search query is required")
+      }
 
-      if (!response.ok) {
+      const result = await apiClient.searchProviders({ q: query })
+
+      if (!result.success) {
         throw new Error(result.error || "Failed to search providers")
       }
 
-      logger.info("Provider search completed", { query, resultsCount: result.data?.length || 0 })
-      return result.data || []
+      logger.info("Provider search completed", { 
+        query, 
+        resultsCount: result.data?.data?.length || result.data?.length || 0 
+      })
+      
+      return (result.data?.data || result.data || []) as Provider[]
     } catch (error) {
       logger.error("Failed to search providers", { error, query })
       throw error
     }
   }
+
+  async getProvidersStats(): Promise<any> {
+    try {
+      logger.info("Fetching providers stats")
+
+      const result = await apiClient.getProvidersStats()
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to fetch providers stats")
+      }
+
+      logger.info("Providers stats fetched successfully")
+      return result.data
+    } catch (error) {
+      logger.error("Failed to fetch providers stats", { error })
+      throw error
+    }
+  }
+
+  async getProvidersCount(): Promise<number> {
+    try {
+      logger.info("Fetching providers count")
+
+      const result = await apiClient.getProvidersCount()
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to fetch providers count")
+      }
+
+      logger.info("Providers count fetched successfully")
+      return result.data?.count || result.data || 0
+    } catch (error) {
+      logger.error("Failed to fetch providers count", { error })
+      throw error
+    }
+  }
+
+  // Utility methods for better UX
+  async validateProviderExists(id: string): Promise<boolean> {
+    try {
+      await this.getProvider(id)
+      return true
+    } catch (error) {
+      return false
+    }
+  }
+
+  async getProvidersByService(serviceType: string): Promise<Provider[]> {
+    try {
+      return this.searchProviders(serviceType)
+    } catch (error) {
+      logger.error("Failed to get providers by service", { error, serviceType })
+      throw error
+    }
+  }
+
+  async getProvidersByZone(zone: string): Promise<Provider[]> {
+    try {
+      const result = await this.getProviders({ zone })
+      return result.providers
+    } catch (error) {
+      logger.error("Failed to get providers by zone", { error, zone })
+      throw error
+    }
+  }
+
+  // Batch operations helper
+  async bulkUpdateStatus(providerIds: string[], status: Provider["status"]): Promise<void> {
+    try {
+      logger.info("Bulk updating provider status", { count: providerIds.length, status })
+
+      const promises = providerIds.map(id => this.updateProviderStatus(id, status))
+      await Promise.all(promises)
+
+      logger.info("Bulk status update completed successfully")
+    } catch (error) {
+      logger.error("Failed to bulk update provider status", { error, providerIds, status })
+      throw error
+    }
+  }
 }
 
+// Export singleton instance
 export const providersService = new ProvidersService()
 export default providersService

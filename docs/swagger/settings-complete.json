@@ -1,0 +1,3541 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Djobea Analytics - Settings API",
+    "description": "API complète pour la gestion des paramètres système de Djobea Analytics",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Équipe Djobea",
+      "email": "support@djobea.com",
+      "url": "https://djobea.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://djobea-analytics.vercel.app/api",
+      "description": "Production server"
+    },
+    {
+      "url": "http://localhost:3000/api",
+      "description": "Development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "General Settings",
+      "description": "Paramètres généraux du système"
+    },
+    {
+      "name": "Notifications Settings",
+      "description": "Configuration des notifications"
+    },
+    {
+      "name": "AI Settings",
+      "description": "Paramètres d'intelligence artificielle"
+    },
+    {
+      "name": "WhatsApp Settings",
+      "description": "Configuration WhatsApp/Twilio"
+    },
+    {
+      "name": "Security Settings",
+      "description": "Paramètres de sécurité"
+    },
+    {
+      "name": "Performance Settings",
+      "description": "Configuration des performances"
+    },
+    {
+      "name": "Providers Settings",
+      "description": "Paramètres des prestataires"
+    },
+    {
+      "name": "Requests Settings",
+      "description": "Configuration des demandes"
+    },
+    {
+      "name": "Business Settings",
+      "description": "Paramètres métier"
+    },
+    {
+      "name": "Admin Settings",
+      "description": "Administration système"
+    },
+    {
+      "name": "Maintenance Settings",
+      "description": "Maintenance et déploiement"
+    }
+  ],
+  "paths": {
+    "/settings/general": {
+      "get": {
+        "tags": ["General Settings"],
+        "summary": "Récupérer les paramètres généraux",
+        "description": "Retourne la configuration générale du système",
+        "responses": {
+          "200": {
+            "description": "Paramètres généraux récupérés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneralSettingsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["General Settings"],
+        "summary": "Sauvegarder les paramètres généraux",
+        "description": "Met à jour la configuration générale du système",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneralSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paramètres sauvegardés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/notifications": {
+      "get": {
+        "tags": ["Notifications Settings"],
+        "summary": "Récupérer les paramètres de notifications",
+        "description": "Retourne la configuration des notifications (push, email, SMS, WhatsApp)",
+        "responses": {
+          "200": {
+            "description": "Paramètres de notifications récupérés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationSettingsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Notifications Settings"],
+        "summary": "Sauvegarder les paramètres de notifications",
+        "description": "Met à jour la configuration des notifications",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paramètres de notifications sauvegardés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/notifications/test": {
+      "post": {
+        "tags": ["Notifications Settings"],
+        "summary": "Tester les notifications",
+        "description": "Envoie une notification de test pour vérifier la configuration",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["push", "email", "sms", "whatsapp"],
+                    "description": "Type de notification à tester"
+                  },
+                  "recipient": {
+                    "type": "string",
+                    "description": "Destinataire du test"
+                  },
+                  "message": {
+                    "type": "string",
+                    "description": "Message de test personnalisé"
+                  }
+                },
+                "required": ["type", "recipient"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Test de notification envoyé avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestNotificationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/ai": {
+      "get": {
+        "tags": ["AI Settings"],
+        "summary": "Récupérer les paramètres IA",
+        "description": "Retourne la configuration de l'intelligence artificielle",
+        "responses": {
+          "200": {
+            "description": "Paramètres IA récupérés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AISettingsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["AI Settings"],
+        "summary": "Sauvegarder les paramètres IA",
+        "description": "Met à jour la configuration de l'intelligence artificielle",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AISettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paramètres IA sauvegardés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/whatsapp": {
+      "get": {
+        "tags": ["WhatsApp Settings"],
+        "summary": "Récupérer les paramètres WhatsApp",
+        "description": "Retourne la configuration WhatsApp/Twilio",
+        "responses": {
+          "200": {
+            "description": "Paramètres WhatsApp récupérés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppSettingsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["WhatsApp Settings"],
+        "summary": "Sauvegarder les paramètres WhatsApp",
+        "description": "Met à jour la configuration WhatsApp/Twilio",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhatsAppSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paramètres WhatsApp sauvegardés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/security": {
+      "get": {
+        "tags": ["Security Settings"],
+        "summary": "Récupérer les paramètres de sécurité",
+        "description": "Retourne la configuration de sécurité du système",
+        "responses": {
+          "200": {
+            "description": "Paramètres de sécurité récupérés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecuritySettingsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Security Settings"],
+        "summary": "Sauvegarder les paramètres de sécurité",
+        "description": "Met à jour la configuration de sécurité",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecuritySettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paramètres de sécurité sauvegardés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/performance": {
+      "get": {
+        "tags": ["Performance Settings"],
+        "summary": "Récupérer les paramètres de performance",
+        "description": "Retourne la configuration des performances système",
+        "responses": {
+          "200": {
+            "description": "Paramètres de performance récupérés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerformanceSettingsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Performance Settings"],
+        "summary": "Sauvegarder les paramètres de performance",
+        "description": "Met à jour la configuration des performances",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerformanceSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paramètres de performance sauvegardés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/providers": {
+      "get": {
+        "tags": ["Providers Settings"],
+        "summary": "Récupérer les paramètres des prestataires",
+        "description": "Retourne la configuration de gestion des prestataires",
+        "responses": {
+          "200": {
+            "description": "Paramètres des prestataires récupérés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProvidersSettingsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Providers Settings"],
+        "summary": "Sauvegarder les paramètres des prestataires",
+        "description": "Met à jour la configuration de gestion des prestataires",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProvidersSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paramètres des prestataires sauvegardés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/providers/test": {
+      "post": {
+        "tags": ["Providers Settings"],
+        "summary": "Tester l'algorithme de matching",
+        "description": "Teste l'algorithme de matching des prestataires avec des paramètres donnés",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "serviceType": {
+                    "type": "string",
+                    "description": "Type de service à tester"
+                  },
+                  "location": {
+                    "type": "string",
+                    "description": "Localisation de test"
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": ["low", "normal", "high", "urgent"],
+                    "description": "Priorité de la demande"
+                  }
+                },
+                "required": ["serviceType", "location"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Test de matching effectué avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchingTestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/requests": {
+      "get": {
+        "tags": ["Requests Settings"],
+        "summary": "Récupérer les paramètres des demandes",
+        "description": "Retourne la configuration de gestion des demandes",
+        "responses": {
+          "200": {
+            "description": "Paramètres des demandes récupérés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestsSettingsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Requests Settings"],
+        "summary": "Sauvegarder les paramètres des demandes",
+        "description": "Met à jour la configuration de gestion des demandes",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestsSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paramètres des demandes sauvegardés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/requests/test-matching": {
+      "post": {
+        "tags": ["Requests Settings"],
+        "summary": "Tester l'algorithme de matching des demandes",
+        "description": "Teste l'algorithme de matching avec les paramètres configurés",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "distanceWeight": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Poids de la distance (0-100%)"
+                  },
+                  "ratingWeight": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Poids de la note (0-100%)"
+                  },
+                  "responseTimeWeight": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Poids du temps de réponse (0-100%)"
+                  },
+                  "specializationWeight": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Poids de la spécialisation (0-100%)"
+                  }
+                },
+                "required": ["distanceWeight", "ratingWeight", "responseTimeWeight", "specializationWeight"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Test de l'algorithme effectué avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlgorithmTestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/business": {
+      "get": {
+        "tags": ["Business Settings"],
+        "summary": "Récupérer les paramètres métier",
+        "description": "Retourne la configuration métier (tarifs, zones, facturation)",
+        "responses": {
+          "200": {
+            "description": "Paramètres métier récupérés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessSettingsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Business Settings"],
+        "summary": "Sauvegarder les paramètres métier",
+        "description": "Met à jour la configuration métier",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paramètres métier sauvegardés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/admin": {
+      "get": {
+        "tags": ["Admin Settings"],
+        "summary": "Récupérer les paramètres d'administration",
+        "description": "Retourne la configuration d'administration système",
+        "responses": {
+          "200": {
+            "description": "Paramètres d'administration récupérés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSettingsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Admin Settings"],
+        "summary": "Sauvegarder les paramètres d'administration",
+        "description": "Met à jour la configuration d'administration",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paramètres d'administration sauvegardés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/admin/test": {
+      "post": {
+        "tags": ["Admin Settings"],
+        "summary": "Tester la configuration admin",
+        "description": "Teste la configuration d'administration (connexions, permissions, etc.)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "testType": {
+                    "type": "string",
+                    "enum": ["database", "email", "permissions", "security"],
+                    "description": "Type de test à effectuer"
+                  }
+                },
+                "required": ["testType"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Test de configuration effectué avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/maintenance": {
+      "get": {
+        "tags": ["Maintenance Settings"],
+        "summary": "Récupérer les paramètres de maintenance",
+        "description": "Retourne la configuration de maintenance et déploiement",
+        "responses": {
+          "200": {
+            "description": "Paramètres de maintenance récupérés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceSettingsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Maintenance Settings"],
+        "summary": "Sauvegarder les paramètres de maintenance",
+        "description": "Met à jour la configuration de maintenance",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceSettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paramètres de maintenance sauvegardés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/maintenance/toggle": {
+      "post": {
+        "tags": ["Maintenance Settings"],
+        "summary": "Activer/Désactiver le mode maintenance",
+        "description": "Bascule le mode maintenance du système",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean",
+                    "description": "Activer ou désactiver le mode maintenance"
+                  },
+                  "message": {
+                    "type": "string",
+                    "description": "Message à afficher pendant la maintenance"
+                  },
+                  "estimatedDuration": {
+                    "type": "integer",
+                    "description": "Durée estimée en minutes"
+                  }
+                },
+                "required": ["enabled"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mode maintenance modifié avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceToggleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/maintenance/deploy": {
+      "post": {
+        "tags": ["Maintenance Settings"],
+        "summary": "Déclencher un déploiement",
+        "description": "Lance un processus de déploiement",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "environment": {
+                    "type": "string",
+                    "enum": ["development", "staging", "production"],
+                    "description": "Environnement cible"
+                  },
+                  "strategy": {
+                    "type": "string",
+                    "enum": ["blue-green", "rolling", "canary"],
+                    "description": "Stratégie de déploiement"
+                  },
+                  "rolloutPercentage": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "description": "Pourcentage de déploiement progressif"
+                  }
+                },
+                "required": ["environment", "strategy"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Déploiement lancé avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/maintenance/feature-flags": {
+      "get": {
+        "tags": ["Maintenance Settings"],
+        "summary": "Récupérer les feature flags",
+        "description": "Retourne la liste des feature flags actifs",
+        "responses": {
+          "200": {
+            "description": "Feature flags récupérés avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureFlagsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Maintenance Settings"],
+        "summary": "Créer un feature flag",
+        "description": "Crée un nouveau feature flag",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFeatureFlagInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Feature flag créé avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureFlagResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/maintenance/feature-flags/{id}": {
+      "put": {
+        "tags": ["Maintenance Settings"],
+        "summary": "Mettre à jour un feature flag",
+        "description": "Met à jour un feature flag existant",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID du feature flag",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFeatureFlagInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Feature flag mis à jour avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureFlagResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Maintenance Settings"],
+        "summary": "Supprimer un feature flag",
+        "description": "Supprime un feature flag",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID du feature flag",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feature flag supprimé avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/maintenance/feature-flags/{id}/toggle": {
+      "post": {
+        "tags": ["Maintenance Settings"],
+        "summary": "Activer/Désactiver un feature flag",
+        "description": "Bascule l'état d'un feature flag",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID du feature flag",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean",
+                    "description": "Nouvel état du feature flag"
+                  }
+                },
+                "required": ["enabled"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Feature flag basculé avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureFlagResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/settings/maintenance/test": {
+      "post": {
+        "tags": ["Maintenance Settings"],
+        "summary": "Tester la configuration de maintenance",
+        "description": "Teste les paramètres de maintenance et déploiement",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "testType": {
+                    "type": "string",
+                    "enum": ["deployment", "rollback", "health-check", "feature-flags"],
+                    "description": "Type de test à effectuer"
+                  }
+                },
+                "required": ["testType"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Test de maintenance effectué avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceTestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GeneralSettingsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/GeneralSettings"
+          }
+        }
+      },
+      "GeneralSettings": {
+        "type": "object",
+        "properties": {
+          "appName": {
+            "type": "string",
+            "description": "Nom de l'application",
+            "example": "Djobea Analytics"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "Fuseau horaire",
+            "example": "Africa/Douala"
+          },
+          "language": {
+            "type": "string",
+            "description": "Langue par défaut",
+            "example": "fr"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Devise",
+            "example": "XAF"
+          },
+          "dateFormat": {
+            "type": "string",
+            "description": "Format de date",
+            "example": "DD/MM/YYYY"
+          },
+          "businessHours": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "string",
+                "example": "08:00"
+              },
+              "end": {
+                "type": "string",
+                "example": "18:00"
+              },
+              "days": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "example": ["monday", "tuesday", "wednesday", "thursday", "friday"]
+              }
+            }
+          },
+          "contactInfo": {
+            "type": "object",
+            "properties": {
+              "phone": {
+                "type": "string",
+                "example": "+237 6XX XX XX XX"
+              },
+              "email": {
+                "type": "string",
+                "example": "contact@djobea.com"
+              },
+              "address": {
+                "type": "string",
+                "example": "Douala, Cameroun"
+              }
+            }
+          }
+        }
+      },
+      "GeneralSettingsInput": {
+        "type": "object",
+        "properties": {
+          "appName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string",
+            "enum": ["fr", "en"]
+          },
+          "currency": {
+            "type": "string",
+            "enum": ["XAF", "EUR", "USD"]
+          },
+          "dateFormat": {
+            "type": "string"
+          },
+          "businessHours": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "string",
+                "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+              },
+              "end": {
+                "type": "string",
+                "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+              },
+              "days": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+                }
+              }
+            }
+          },
+          "contactInfo": {
+            "type": "object",
+            "properties": {
+              "phone": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "address": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "NotificationSettingsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/NotificationSettings"
+          }
+        }
+      },
+      "NotificationSettings": {
+        "type": "object",
+        "properties": {
+          "pushNotifications": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "description": "Activer les notifications push"
+              },
+              "firebaseServerKey": {
+                "type": "string",
+                "description": "Clé serveur Firebase"
+              },
+              "soundEnabled": {
+                "type": "boolean",
+                "description": "Activer le son"
+              },
+              "vibrationEnabled": {
+                "type": "boolean",
+                "description": "Activer la vibration"
+              },
+              "badgeEnabled": {
+                "type": "boolean",
+                "description": "Activer les badges"
+              },
+              "quietHours": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "startTime": {
+                    "type": "string",
+                    "example": "22:00"
+                  },
+                  "endTime": {
+                    "type": "string",
+                    "example": "07:00"
+                  }
+                }
+              }
+            }
+          },
+          "emailNotifications": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "provider": {
+                "type": "string",
+                "enum": ["sendgrid", "mailgun", "ses"]
+              },
+              "sendgridApiKey": {
+                "type": "string"
+              },
+              "fromEmail": {
+                "type": "string",
+                "format": "email"
+              },
+              "fromName": {
+                "type": "string"
+              },
+              "digestEnabled": {
+                "type": "boolean"
+              },
+              "digestFrequency": {
+                "type": "string",
+                "enum": ["daily", "weekly", "monthly"]
+              },
+              "digestTime": {
+                "type": "string",
+                "example": "08:00"
+              }
+            }
+          },
+          "smsNotifications": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "provider": {
+                "type": "string",
+                "enum": ["local", "twilio"]
+              },
+              "orangeApiKey": {
+                "type": "string"
+              },
+              "mtnApiKey": {
+                "type": "string"
+              },
+              "dailyLimit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10000
+              },
+              "costPerSms": {
+                "type": "number",
+                "minimum": 0
+              },
+              "emergencyOnly": {
+                "type": "boolean"
+              }
+            }
+          },
+          "notificationRules": {
+            "type": "object",
+            "properties": {
+              "newRequest": {
+                "$ref": "#/components/schemas/NotificationRule"
+              },
+              "providerAssigned": {
+                "$ref": "#/components/schemas/NotificationRule"
+              },
+              "requestCompleted": {
+                "$ref": "#/components/schemas/NotificationRule"
+              },
+              "paymentReceived": {
+                "$ref": "#/components/schemas/NotificationRule"
+              },
+              "systemAlert": {
+                "$ref": "#/components/schemas/NotificationRule"
+              }
+            }
+          },
+          "templates": {
+            "type": "object",
+            "properties": {
+              "whatsapp": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MessageTemplate"
+                }
+              },
+              "sms": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MessageTemplate"
+                }
+              },
+              "email": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EmailTemplate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "NotificationSettingsInput": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/NotificationSettings"
+          }
+        ]
+      },
+      "NotificationRule": {
+        "type": "object",
+        "properties": {
+          "push": {
+            "type": "boolean"
+          },
+          "email": {
+            "type": "boolean"
+          },
+          "sms": {
+            "type": "boolean"
+          },
+          "whatsapp": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MessageTemplate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "variables": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "EmailTemplate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/MessageTemplate"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "subject": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "TestNotificationResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "deliveryStatus": {
+            "type": "string",
+            "enum": ["sent", "delivered", "failed"]
+          },
+          "deliveryTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AISettingsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/AISettings"
+          }
+        }
+      },
+      "AISettings": {
+        "type": "object",
+        "properties": {
+          "aiConfig": {
+            "type": "object",
+            "properties": {
+              "model": {
+                "type": "string",
+                "description": "Modèle IA utilisé",
+                "example": "claude-sonnet-4-20250514"
+              },
+              "apiKey": {
+                "type": "string",
+                "description": "Clé API (masquée)"
+              },
+              "timeout": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "description": "Timeout en secondes"
+              },
+              "maxTokens": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 8000,
+                "description": "Nombre maximum de tokens"
+              },
+              "temperature": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Température du modèle"
+              }
+            }
+          },
+          "conversationConfig": {
+            "type": "object",
+            "properties": {
+              "contextMemory": {
+                "type": "boolean",
+                "description": "Mémoriser le contexte"
+              },
+              "autoSuggestions": {
+                "type": "boolean",
+                "description": "Suggestions automatiques"
+              },
+              "responseDelay": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10,
+                "description": "Délai de réponse en secondes"
+              },
+              "maxConversationLength": {
+                "type": "integer",
+                "minimum": 10,
+                "maximum": 200,
+                "description": "Longueur max de conversation"
+              },
+              "profanityFilter": {
+                "type": "boolean",
+                "description": "Filtre de grossièretés"
+              },
+              "emotionalTone": {
+                "type": "string",
+                "enum": ["professional", "friendly", "casual"],
+                "description": "Ton émotionnel"
+              }
+            }
+          },
+          "expressions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string",
+                  "enum": ["salutation", "comprehension", "politesse", "confirmation"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "AISettingsInput": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AISettings"
+          }
+        ]
+      },
+      "WhatsAppSettingsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/WhatsAppSettings"
+          }
+        }
+      },
+      "WhatsAppSettings": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "type": "object",
+            "properties": {
+              "accountSid": {
+                "type": "string",
+                "description": "Account SID Twilio"
+              },
+              "authToken": {
+                "type": "string",
+                "description": "Token d'authentification"
+              },
+              "whatsappNumber": {
+                "type": "string",
+                "description": "Numéro WhatsApp Business"
+              },
+              "webhookUrl": {
+                "type": "string",
+                "format": "uri",
+                "description": "URL du webhook"
+              },
+              "statusCallbackUrl": {
+                "type": "string",
+                "format": "uri",
+                "description": "URL de callback de statut"
+              },
+              "connectionTimeout": {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 60,
+                "description": "Timeout de connexion en secondes"
+              }
+            }
+          },
+          "messaging": {
+            "type": "object",
+            "properties": {
+              "sendDelay": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10,
+                "description": "Délai d'envoi en secondes"
+              },
+              "dailyLimit": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 10000,
+                "description": "Limite quotidienne de messages"
+              },
+              "retryAttempts": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5,
+                "description": "Nombre de tentatives"
+              },
+              "queueSize": {
+                "type": "integer",
+                "minimum": 10,
+                "maximum": 500,
+                "description": "Taille de la queue"
+              },
+              "failureNotifications": {
+                "type": "boolean",
+                "description": "Notifications d'échec"
+              },
+              "detailedLogs": {
+                "type": "boolean",
+                "description": "Logs détaillés"
+              },
+              "devMode": {
+                "type": "boolean",
+                "description": "Mode développement"
+              }
+            }
+          },
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageTemplate"
+            }
+          },
+          "lastUpdated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WhatsAppSettingsInput": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/WhatsAppSettings"
+          }
+        ]
+      },
+      "SecuritySettingsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/SecuritySettings"
+          },
+          "securityScore": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Score de sécurité global"
+          }
+        }
+      },
+      "SecuritySettings": {
+        "type": "object",
+        "properties": {
+          "authentication": {
+            "type": "object",
+            "properties": {
+              "jwtExpiration": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 168,
+                "description": "Expiration JWT en heures"
+              },
+              "refreshTokenExpiration": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 365,
+                "description": "Expiration refresh token en jours"
+              },
+              "twoFactorRequired": {
+                "type": "boolean",
+                "description": "2FA obligatoire"
+              },
+              "multipleSessionsAllowed": {
+                "type": "boolean",
+                "description": "Sessions multiples autorisées"
+              },
+              "loginAttemptLimit": {
+                "type": "integer",
+                "minimum": 3,
+                "maximum": 10,
+                "description": "Limite de tentatives de connexion"
+              },
+              "lockoutDuration": {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 1440,
+                "description": "Durée de verrouillage en minutes"
+              }
+            }
+          },
+          "encryption": {
+            "type": "object",
+            "properties": {
+              "databaseEncryption": {
+                "type": "string",
+                "enum": ["AES-128", "AES-256"],
+                "description": "Chiffrement base de données"
+              },
+              "communicationProtocol": {
+                "type": "string",
+                "enum": ["TLS 1.2", "TLS 1.3"],
+                "description": "Protocole de communication"
+              },
+              "passwordHashing": {
+                "type": "string",
+                "enum": ["bcrypt", "argon2"],
+                "description": "Algorithme de hachage"
+              },
+              "hashRounds": {
+                "type": "integer",
+                "minimum": 10,
+                "maximum": 15,
+                "description": "Nombre de rounds de hachage"
+              },
+              "piiEncryption": {
+                "type": "boolean",
+                "description": "Chiffrement des données personnelles"
+              },
+              "backupEncryption": {
+                "type": "boolean",
+                "description": "Chiffrement des sauvegardes"
+              }
+            }
+          },
+          "ipWhitelist": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "addresses": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Adresses IP autorisées"
+              }
+            }
+          },
+          "audit": {
+            "type": "object",
+            "properties": {
+              "logLevel": {
+                "type": "string",
+                "enum": ["ERROR", "WARN", "INFO", "DEBUG"]
+              },
+              "logRetention": {
+                "type": "integer",
+                "minimum": 30,
+                "maximum": 2555,
+                "description": "Rétention des logs en jours"
+              },
+              "securityLogRetention": {
+                "type": "integer",
+                "minimum": 90,
+                "maximum": 2555,
+                "description": "Rétention des logs de sécurité en jours"
+              },
+              "structuredLogging": {
+                "type": "boolean"
+              },
+              "monitoringAlerts": {
+                "type": "boolean"
+              }
+            }
+          },
+          "compliance": {
+            "type": "object",
+            "properties": {
+              "rgpdCompliant": {
+                "type": "boolean",
+                "description": "Conformité RGPD"
+              },
+              "dataProtectionLaw": {
+                "type": "boolean",
+                "description": "Loi sur la protection des données"
+              },
+              "rightToForgotten": {
+                "type": "boolean",
+                "description": "Droit à l'oubli"
+              },
+              "explicitConsent": {
+                "type": "boolean",
+                "description": "Consentement explicite"
+              }
+            }
+          }
+        }
+      },
+      "SecuritySettingsInput": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SecuritySettings"
+          }
+        ]
+      },
+      "PerformanceSettingsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/PerformanceSettings"
+          },
+          "performanceScore": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Score de performance global"
+          }
+        }
+      },
+      "PerformanceSettings": {
+        "type": "object",
+        "properties": {
+          "cache": {
+            "type": "object",
+            "properties": {
+              "redisEnabled": {
+                "type": "boolean"
+              },
+              "ttl": {
+                "type": "integer",
+                "minimum": 60,
+                "maximum": 3600,
+                "description": "TTL du cache en secondes"
+              },
+              "maxMemory": {
+                "type": "string",
+                "description": "Mémoire maximum (ex: 512mb)"
+              },
+              "evictionPolicy": {
+                "type": "string",
+                "enum": ["allkeys-lru", "allkeys-lfu", "volatile-lru", "volatile-lfu"]
+              }
+            }
+          },
+          "cdn": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "provider": {
+                "type": "string",
+                "enum": ["CloudFlare", "AWS CloudFront", "Azure CDN"]
+              },
+              "regions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "cacheHeaders": {
+                "type": "boolean"
+              }
+            }
+          },
+          "compression": {
+            "type": "object",
+            "properties": {
+              "gzipEnabled": {
+                "type": "boolean"
+              },
+              "brotliEnabled": {
+                "type": "boolean"
+              },
+              "level": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9
+              },
+              "minSize": {
+                "type": "integer",
+                "minimum": 512,
+                "description": "Taille minimum en bytes"
+              }
+            }
+          },
+          "images": {
+            "type": "object",
+            "properties": {
+              "webpEnabled": {
+                "type": "boolean"
+              },
+              "lazyLoading": {
+                "type": "boolean"
+              },
+              "compression": {
+                "type": "integer",
+                "minimum": 10,
+                "maximum": 100,
+                "description": "Qualité de compression (10-100%)"
+              },
+              "maxWidth": {
+                "type": "integer",
+                "minimum": 800,
+                "maximum": 4000
+              }
+            }
+          },
+          "database": {
+            "type": "object",
+            "properties": {
+              "connectionPool": {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 100
+              },
+              "queryTimeout": {
+                "type": "integer",
+                "minimum": 10,
+                "maximum": 300,
+                "description": "Timeout des requêtes en secondes"
+              },
+              "indexOptimization": {
+                "type": "boolean"
+              },
+              "slowQueryLog": {
+                "type": "boolean"
+              }
+            }
+          },
+          "monitoring": {
+            "type": "object",
+            "properties": {
+              "uptimeTarget": {
+                "type": "number",
+                "minimum": 95,
+                "maximum": 100,
+                "description": "Cible d'uptime en %"
+              },
+              "responseTimeTarget": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 5000,
+                "description": "Cible de temps de réponse en ms"
+              },
+              "errorRateTarget": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 5,
+                "description": "Cible de taux d'erreur en %"
+              },
+              "alertsEnabled": {
+                "type": "boolean"
+              }
+            }
+          },
+          "backup": {
+            "type": "object",
+            "properties": {
+              "dailyEnabled": {
+                "type": "boolean"
+              },
+              "weeklyEnabled": {
+                "type": "boolean"
+              },
+              "retention": {
+                "type": "integer",
+                "minimum": 7,
+                "maximum": 365,
+                "description": "Rétention en jours"
+              },
+              "encryption": {
+                "type": "boolean"
+              },
+              "rto": {
+                "type": "integer",
+                "minimum": 15,
+                "maximum": 1440,
+                "description": "Recovery Time Objective en minutes"
+              },
+              "rpo": {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 60,
+                "description": "Recovery Point Objective en minutes"
+              }
+            }
+          }
+        }
+      },
+      "PerformanceSettingsInput": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PerformanceSettings"
+          }
+        ]
+      },
+      "ProvidersSettingsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/ProvidersSettings"
+          }
+        }
+      },
+      "ProvidersSettings": {
+        "type": "object",
+        "properties": {
+          "validation": {
+            "type": "object",
+            "properties": {
+              "autoApproval": {
+                "type": "boolean",
+                "description": "Approbation automatique"
+              },
+              "minRating": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 5,
+                "description": "Note minimum requise"
+              },
+              "requiredDocuments": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Documents requis"
+              },
+              "trialPeriod": {
+                "type": "integer",
+                "minimum": 7,
+                "maximum": 90,
+                "description": "Période d'essai en jours"
+              },
+              "backgroundCheck": {
+                "type": "boolean",
+                "description": "Vérification des antécédents"
+              }
+            }
+          },
+          "rating": {
+            "type": "object",
+            "properties": {
+              "minRating": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 5
+              },
+              "maxRating": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 5
+              },
+              "suspensionThreshold": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 5,
+                "description": "Seuil de suspension"
+              },
+              "probationThreshold": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 5,
+                "description": "Seuil de probation"
+              },
+              "reviewPeriod": {
+                "type": "integer",
+                "minimum": 7,
+                "maximum": 90,
+                "description": "Période de révision en jours"
+              }
+            }
+          },
+          "availability": {
+            "type": "object",
+            "properties": {
+              "responseTimeout": {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 120,
+                "description": "Timeout de réponse en minutes"
+              },
+              "workingHours": {
+                "type": "object",
+                "properties": {
+                  "start": {
+                    "type": "string",
+                    "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+                  },
+                  "end": {
+                    "type": "string",
+                    "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+                  }
+                }
+              },
+              "maxSimultaneousJobs": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10
+              },
+              "restBetweenJobs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 120,
+                "description": "Repos entre missions en minutes"
+              }
+            }
+          },
+          "commission": {
+            "type": "object",
+            "properties": {
+              "standardRate": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 50,
+                "description": "Taux standard en %"
+              },
+              "premiumRate": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 50,
+                "description": "Taux premium en %"
+              },
+              "newProviderRate": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 50,
+                "description": "Taux nouveau prestataire en %"
+              },
+              "bonusSystem": {
+                "type": "boolean",
+                "description": "Système de bonus"
+              }
+            }
+          },
+          "notifications": {
+            "type": "object",
+            "properties": {
+              "newRequestAlert": {
+                "type": "boolean"
+              },
+              "ratingAlert": {
+                "type": "boolean"
+              },
+              "paymentAlert": {
+                "type": "boolean"
+              },
+              "systemUpdates": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "ProvidersSettingsInput": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ProvidersSettings"
+          }
+        ]
+      },
+      "MatchingTestResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "matchedProviders": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "distance": {
+                  "type": "number"
+                },
+                "rating": {
+                  "type": "number"
+                },
+                "responseTime": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "algorithmPerformance": {
+            "type": "object",
+            "properties": {
+              "executionTime": {
+                "type": "number",
+                "description": "Temps d'exécution en ms"
+              },
+              "providersEvaluated": {
+                "type": "integer"
+              },
+              "matchingAccuracy": {
+                "type": "number",
+                "description": "Précision du matching en %"
+              }
+            }
+          }
+        }
+      },
+      "RequestsSettingsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/RequestsSettings"
+          }
+        }
+      },
+      "RequestsSettings": {
+        "type": "object",
+        "properties": {
+          "automaticProcessing": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "description": "Traitement automatique activé"
+              },
+              "timeoutAssignment": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 60,
+                "description": "Timeout d'assignation en minutes"
+              },
+              "maxProvidersContacted": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10,
+                "description": "Nombre max de prestataires contactés"
+              },
+              "geographicPriority": {
+                "type": "boolean",
+                "description": "Priorité géographique"
+              },
+              "ratingPriority": {
+                "type": "boolean",
+                "description": "Priorité par note"
+              },
+              "availabilityPriority": {
+                "type": "boolean",
+                "description": "Priorité par disponibilité"
+              }
+            }
+          },
+          "matchingAlgorithm": {
+            "type": "object",
+            "properties": {
+              "distanceWeight": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Poids de la distance (0-100%)"
+              },
+              "ratingWeight": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Poids de la note (0-100%)"
+              },
+              "responseTimeWeight": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Poids du temps de réponse (0-100%)"
+              },
+              "specializationWeight": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Poids de la spécialisation (0-100%)"
+              },
+              "newProviderBoost": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 50,
+                "description": "Boost nouveau prestataire (0-50%)"
+              }
+            }
+          },
+          "timeouts": {
+            "type": "object",
+            "properties": {
+              "providerResponse": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 120,
+                "description": "Timeout réponse prestataire en minutes"
+              },
+              "automaticFallback": {
+                "type": "boolean",
+                "description": "Fallback automatique"
+              },
+              "adminEscalation": {
+                "type": "integer",
+                "minimum": 30,
+                "maximum": 1440,
+                "description": "Escalation admin en minutes"
+              },
+              "autoCancel": {
+                "type": "integer",
+                "minimum": 60,
+                "maximum": 2880,
+                "description": "Annulation automatique en minutes"
+              },
+              "clientNotification": {
+                "type": "boolean",
+                "description": "Notification client"
+              }
+            }
+          },
+          "statuses": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "boolean"
+              },
+              "providerNotified": {
+                "type": "boolean"
+              },
+              "assigned": {
+                "type": "boolean"
+              },
+              "inProgress": {
+                "type": "boolean"
+              },
+              "completed": {
+                "type": "boolean"
+              },
+              "cancelled": {
+                "type": "boolean"
+              },
+              "failed": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "RequestsSettingsInput": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RequestsSettings"
+          }
+        ]
+      },
+      "AlgorithmTestResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "testResults": {
+            "type": "object",
+            "properties": {
+              "totalWeight": {
+                "type": "number",
+                "description": "Poids total (doit être 100%)"
+              },
+              "isValid": {
+                "type": "boolean",
+                "description": "Configuration valide"
+              },
+              "recommendations": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Recommandations d'optimisation"
+              },
+              "estimatedPerformance": {
+                "type": "object",
+                "properties": {
+                  "matchingAccuracy": {
+                    "type": "number",
+                    "description": "Précision estimée en %"
+                  },
+                  "averageResponseTime": {
+                    "type": "number",
+                    "description": "Temps de réponse moyen en ms"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BusinessSettingsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "settings": {
+            "$ref": "#/components/schemas/BusinessSettings"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "lastUpdated": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "version": {
+                "type": "string"
+              },
+              "configType": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "BusinessSettings": {
+        "type": "object",
+        "properties": {
+          "fraisDeplacementBase": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Frais de déplacement de base en XAF"
+          },
+          "fraisDeplacementParKm": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Frais par kilomètre en XAF"
+          },
+          "supplementUrgence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Supplément urgence en %"
+          },
+          "forfaitDiagnostic": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Forfait diagnostic en XAF"
+          },
+          "garantieTravaux": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365,
+            "description": "Garantie travaux en jours"
+          },
+          "dureeCreneauStandard": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8,
+            "description": "Durée créneau standard en heures"
+          },
+          "dureeCreneauUrgence": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4,
+            "description": "Durée créneau urgence en heures"
+          },
+          "reservationMaxJours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30,
+            "description": "Réservation maximum en jours"
+          },
+          "annulationGratuiteHeures": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 48,
+            "description": "Annulation gratuite en heures"
+          },
+          "heureOuverture": {
+            "type": "string",
+            "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+            "description": "Heure d'ouverture"
+          },
+          "heureFermeture": {
+            "type": "string",
+            "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+            "description": "Heure de fermeture"
+          },
+          "tvaApplicable": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 50,
+            "description": "TVA applicable en %"
+          },
+          "numeroFacturePrefix": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 10,
+            "description": "Préfixe numéro de facture"
+          },
+          "numeroFactureAnnee": {
+            "type": "integer",
+            "minimum": 2020,
+            "maximum": 2030,
+            "description": "Année de facturation"
+          },
+          "numeroFactureCompteur": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Compteur de facture"
+          },
+          "archivageDureeAnnees": {
+            "type": "integer",
+            "minimum": 3,
+            "maximum": 10,
+            "description": "Durée d'archivage en années"
+          },
+          "factureAutomatique": {
+            "type": "boolean",
+            "description": "Facturation automatique"
+          },
+          "zonesPrincipales": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "description": "Zones principales de service"
+          },
+          "rayonServiceKm": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 100,
+            "description": "Rayon de service en km"
+          },
+          "fraisDeplacementSeuil": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Seuil frais de déplacement en km"
+          }
+        }
+      },
+      "BusinessSettingsInput": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BusinessSettings"
+          }
+        ]
+      },
+      "AdminSettingsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/AdminSettings"
+          }
+        }
+      },
+      "AdminSettings": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminUser"
+            }
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminRole"
+            }
+          },
+          "debugSettings": {
+            "type": "object",
+            "properties": {
+              "debugMode": {
+                "type": "boolean"
+              },
+              "realTimeLogs": {
+                "type": "boolean"
+              },
+              "webhookTesting": {
+                "type": "boolean"
+              },
+              "aiPlayground": {
+                "type": "boolean"
+              },
+              "cacheReset": {
+                "type": "boolean"
+              },
+              "performanceMonitoring": {
+                "type": "boolean"
+              },
+              "logLevel": {
+                "type": "string",
+                "enum": ["error", "warn", "info", "debug"]
+              },
+              "maxLogSize": {
+                "type": "integer",
+                "minimum": 10,
+                "maximum": 1000,
+                "description": "Taille max logs en MB"
+              }
+            }
+          },
+          "mobileAdminSettings": {
+            "type": "object",
+            "properties": {
+              "pwaEnabled": {
+                "type": "boolean"
+              },
+              "pushNotifications": {
+                "type": "boolean"
+              },
+              "emergencyAccess": {
+                "type": "boolean"
+              },
+              "mobileOptimized": {
+                "type": "boolean"
+              },
+              "offlineMode": {
+                "type": "boolean"
+              },
+              "biometricAuth": {
+                "type": "boolean"
+              }
+            }
+          },
+          "systemSettings": {
+            "type": "object",
+            "properties": {
+              "sessionTimeout": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 24,
+                "description": "Timeout session en heures"
+              },
+              "auditEnabled": {
+                "type": "boolean"
+              },
+              "slackNotifications": {
+                "type": "boolean"
+              },
+              "emailNotifications": {
+                "type": "boolean"
+              },
+              "maxLoginAttempts": {
+                "type": "integer",
+                "minimum": 3,
+                "maximum": 10
+              },
+              "passwordExpiry": {
+                "type": "integer",
+                "minimum": 30,
+                "maximum": 365,
+                "description": "Expiration mot de passe en jours"
+              },
+              "twoFactorRequired": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "AdminUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "inactive", "suspended"]
+          },
+          "lastLogin": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date"
+          },
+          "loginAttempts": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "AdminRole": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "userCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "isSystem": {
+            "type": "boolean",
+            "description": "Rôle système (non modifiable)"
+          }
+        }
+      },
+      "AdminSettingsInput": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AdminSettings"
+          }
+        ]
+      },
+      "AdminTestResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "testType": {
+            "type": "string"
+          },
+          "results": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["passed", "failed", "warning"]
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object"
+              },
+              "executionTime": {
+                "type": "number",
+                "description": "Temps d'exécution en ms"
+              }
+            }
+          }
+        }
+      },
+      "MaintenanceSettingsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "$ref": "#/components/schemas/MaintenanceSettings"
+          }
+        }
+      },
+      "MaintenanceSettings": {
+        "type": "object",
+        "properties": {
+          "maintenance": {
+            "type": "object",
+            "properties": {
+              "scheduledWindow": {
+                "type": "object",
+                "properties": {
+                  "dayOfWeek": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 6,
+                    "description": "Jour de la semaine (0=Dimanche)"
+                  },
+                  "startTime": {
+                    "type": "string",
+                    "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+                  },
+                  "endTime": {
+                    "type": "string",
+                    "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "example": "Africa/Douala"
+                  }
+                }
+              },
+              "preNotificationHours": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 168,
+                "description": "Préavis en heures"
+              },
+              "maintenancePageEnabled": {
+                "type": "boolean"
+              },
+              "autoRollbackEnabled": {
+                "type": "boolean"
+              },
+              "rollbackTimeoutMinutes": {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 120
+              },
+              "maintenanceMessage": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "allowedIPs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "IPs autorisées pendant la maintenance"
+              }
+            }
+          },
+          "deployment": {
+            "type": "object",
+            "properties": {
+              "environments": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["development", "staging", "production"]
+                }
+              },
+              "currentEnvironment": {
+                "type": "string",
+                "enum": ["development", "staging", "production"]
+              },
+              "blueGreenEnabled": {
+                "type": "boolean"
+              },
+              "automatedTesting": {
+                "type": "boolean"
+              },
+              "featureFlagsEnabled": {
+                "type": "boolean"
+              },
+              "rolloutPercentage": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "deploymentStrategy": {
+                "type": "string",
+                "enum": ["blue-green", "rolling", "canary"]
+              },
+              "healthCheckUrl": {
+                "type": "string",
+                "format": "uri"
+              },
+              "maxDeploymentTime": {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 120,
+                "description": "Temps max de déploiement en minutes"
+              }
+            }
+          },
+          "status": {
+            "type": "object",
+            "properties": {
+              "uptime": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "lastMaintenance": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "nextMaintenance": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "deploymentsToday": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "environment": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "healthScore": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "activeIncidents": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "featureFlags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeatureFlag"
+            }
+          },
+          "maintenanceMode": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MaintenanceSettingsInput": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/MaintenanceSettings"
+          }
+        ]
+      },
+      "FeatureFlag": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "rolloutPercentage": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "environments": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["development", "staging", "production"]
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "conditions": {
+            "type": "object",
+            "properties": {
+              "userSegment": {
+                "type": "string"
+              },
+              "region": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "CreateFeatureFlagInput": {
+        "type": "object",
+        "required": ["name", "description"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "rolloutPercentage": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "default": 0
+          },
+          "environments": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["development", "staging", "production"]
+            },
+            "default": ["development"]
+          },
+          "conditions": {
+            "type": "object",
+            "properties": {
+              "userSegment": {
+                "type": "string"
+              },
+              "region": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "UpdateFeatureFlagInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "rolloutPercentage": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "environments": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["development", "staging", "production"]
+            }
+          },
+          "conditions": {
+            "type": "object",
+            "properties": {
+              "userSegment": {
+                "type": "string"
+              },
+              "region": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "FeatureFlagResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/FeatureFlag"
+          }
+        }
+      },
+      "FeatureFlagsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeatureFlag"
+            }
+          }
+        }
+      },
+      "MaintenanceToggleResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "maintenanceMode": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "estimatedDuration": {
+            "type": "integer",
+            "description": "Durée estimée en minutes"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DeploymentResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "deploymentId": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string"
+          },
+          "strategy": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["initiated", "in-progress", "completed", "failed"]
+          },
+          "estimatedDuration": {
+            "type": "integer",
+            "description": "Durée estimée en minutes"
+          },
+          "rolloutPercentage": {
+            "type": "integer"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MaintenanceTestResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "testType": {
+            "type": "string"
+          },
+          "results": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["passed", "failed", "warning"]
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object"
+              },
+              "executionTime": {
+                "type": "number"
+              },
+              "recommendations": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Opération réussie"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "object"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ValidationErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string",
+            "example": "VALIDATION_ERROR"
+          },
+          "message": {
+            "type": "string",
+            "example": "Données invalides"
+          },
+          "validationErrors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "code": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "responses": {
+      "ServerError": {
+        "description": "Erreur serveur interne",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Erreur de validation des données",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ValidationErrorResponse"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Ressource non trouvée",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Non autorisé",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Accès interdit",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token JWT d'authentification"
+      },
+      "apiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "Clé API pour l'authentification"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    },
+    {
+      "apiKey": []
+    }
+  ]
+}

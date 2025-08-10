@@ -1,25 +1,14 @@
 "use client"
 
-import type React from "react"
-import { createContext, useContext, useEffect, useState } from "react"
-
-interface User {
-  id: string
-  name: string
-  email: string
-  role: string
-  avatar?: string
-  permissions: string[]
-  department?: string
-  status: "active" | "inactive" | "suspended"
-  lastLogin?: Date
-  createdAt: Date
-}
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { AuthService, type User, type LoginCredentials } from "@/lib/auth"
+import { useRouter } from "next/navigation"
+import { toast } from "@/hooks/use-toast"
 
 interface AuthContextType {
   user: User | null
-  login: (email: string, password: string) => Promise<void>
-  logout: () => Promise<void>
+  login: (credentials: LoginCredentials) => Promise<boolean>
+  logout: () => void
   isLoading: boolean
   isAuthenticated: boolean
 }
@@ -34,110 +23,98 @@ export function useAuth() {
   return context
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
-    // Initialize with mock user for development
-    const initializeAuth = async () => {
+    // Check for stored authentication on mount
+    const initAuth = async () => {
       try {
-        // Simulate checking for existing session
-        await new Promise((resolve) => setTimeout(resolve, 100))
+        const storedUser = AuthService.getStoredUser()
+        const token = AuthService.getStoredToken()
 
-        // Mock user data
-        const mockUser: User = {
-          id: "1",
-          name: "Admin User",
-          email: "admin@djobea.com",
-          role: "admin",
-          avatar: "/placeholder.svg?height=32&width=32",
-          permissions: [
-            "users.read",
-            "users.create",
-            "users.update",
-            "users.delete",
-            "providers.read",
-            "providers.create",
-            "providers.update",
-            "providers.delete",
-            "requests.read",
-            "requests.create",
-            "requests.update",
-            "requests.delete",
-            "analytics.read",
-            "analytics.export",
-            "finances.read",
-            "settings.read",
-            "settings.update",
-            "admin.access",
-          ],
-          department: "IT",
-          status: "active",
-          lastLogin: new Date(),
-          createdAt: new Date(),
+        if (storedUser && token) {
+          setUser(storedUser)
+        } else {
+          // Try to refresh token if we have a refresh token
+          const refreshed = await AuthService.refreshToken()
+          if (refreshed) {
+            const refreshedUser = AuthService.getStoredUser()
+            if (refreshedUser) {
+              setUser(refreshedUser)
+            }
+          }
         }
-
-        setUser(mockUser)
       } catch (error) {
-        console.error("Auth initialization failed:", error)
+        console.error("Auth initialization error:", error)
+        AuthService.logout()
       } finally {
         setIsLoading(false)
       }
     }
 
-    initializeAuth()
+    initAuth()
   }, [])
 
-  const login = async (email: string, password: string) => {
-    try {
-      setIsLoading(true)
-      // Mock login - in production, make API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+  const login = async (credentials: LoginCredentials): Promise<boolean> => {
+    setIsLoading(true)
 
-      const mockUser: User = {
-        id: "1",
-        name: "Admin User",
-        email: email,
-        role: "admin",
-        avatar: "/placeholder.svg?height=32&width=32",
-        permissions: ["users.read", "users.create", "providers.read", "admin.access"],
-        department: "IT",
-        status: "active",
-        lastLogin: new Date(),
-        createdAt: new Date(),
+    try {
+      const response = await AuthService.login(credentials)
+
+      if (response.success && response.data) {
+        setUser(response.data.user)
+        toast({
+          title: "Login Successful",
+          description: `Welcome back, ${response.data.user.name}!`,
+        })
+        return true
+      } else {
+        toast({
+          title: "Login Failed",
+          description: response.message || "Invalid credentials",
+          variant: "destructive",
+        })
+        return false
       }
-
-      setUser(mockUser)
     } catch (error) {
-      console.error("Login failed:", error)
-      throw error
+      console.error("Login error:", error)
+      toast({
+        title: "Login Error",
+        description: error instanceof Error ? error.message : "An error occurred during login",
+        variant: "destructive",
+      })
+      return false
     } finally {
       setIsLoading(false)
     }
   }
 
-  const logout = async () => {
-    try {
-      setIsLoading(true)
-      // Mock logout - in production, make API call
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      setUser(null)
-    } catch (error) {
-      console.error("Logout failed:", error)
-      throw error
-    } finally {
-      setIsLoading(false)
-    }
+  const logout = () => {
+    AuthService.logout()
+    setUser(null)
+    toast({
+      title: "Logged Out",
+      description: "You have been successfully logged out.",
+    })
+    router.push("/login")
   }
 
-  const value: AuthContextType = {
-    user,
-    login,
-    logout,
-    isLoading,
-    isAuthenticated: !!user,
-  }
+  const isAuthenticated = user !== null && AuthService.isAuthenticated()
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        logout,
+        isLoading,
+        isAuthenticated,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
 }

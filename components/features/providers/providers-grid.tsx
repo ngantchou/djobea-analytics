@@ -1,13 +1,7 @@
 "use client"
-
-import { useState } from "react"
 import styled from "styled-components"
 import { motion } from "framer-motion"
 import { ProviderCard } from "./provider-card"
-import { ViewProviderModal } from "./view-provider-modal"
-import { EditProviderModal } from "./edit-provider-modal"
-import { ContactProviderModal } from "./contact-provider-modal"
-import { DeleteProviderModal } from "./delete-provider-modal"
 import type { Provider } from "@/types/providers"
 
 const GridContainer = styled.div`
@@ -77,40 +71,13 @@ const LoadingCard = styled(motion.div)`
 interface ProvidersGridProps {
   providers: Provider[]
   loading: boolean
+  onView: (providerId: string) => void
+  onEdit: (providerId: string) => void
+  onContact: (providerId: string) => void
+  onDelete: (providerId: string, providerName: string) => void
 }
 
-export function ProvidersGrid({ providers, loading }: ProvidersGridProps) {
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null)
-  const [selectedProviderName, setSelectedProviderName] = useState<string>("")
-  const [activeModal, setActiveModal] = useState<"view" | "edit" | "contact" | "delete" | null>(null)
-
-  const handleView = (providerId: string) => {
-    setSelectedProviderId(providerId)
-    setActiveModal("view")
-  }
-
-  const handleEdit = (providerId: string) => {
-    setSelectedProviderId(providerId)
-    setActiveModal("edit")
-  }
-
-  const handleContact = (providerId: string) => {
-    setSelectedProviderId(providerId)
-    setActiveModal("contact")
-  }
-
-  const handleDelete = (providerId: string, providerName: string) => {
-    setSelectedProviderId(providerId)
-    setSelectedProviderName(providerName)
-    setActiveModal("delete")
-  }
-
-  const closeModal = () => {
-    setActiveModal(null)
-    setSelectedProviderId(null)
-    setSelectedProviderName("")
-  }
-
+export function ProvidersGrid({ providers, loading, onView, onEdit, onContact, onDelete }: ProvidersGridProps) {
   if (loading) {
     return (
       <LoadingGrid>
@@ -136,38 +103,23 @@ export function ProvidersGrid({ providers, loading }: ProvidersGridProps) {
   }
 
   return (
-    <>
-      <GridContainer>
-        {providers.map((provider, index) => (
-          <motion.div
-            key={provider.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <ProviderCard
-              provider={provider}
-              onView={() => handleView(provider.id)}
-              onEdit={() => handleEdit(provider.id)}
-              onContact={() => handleContact(provider.id)}
-              onDelete={() => handleDelete(provider.id, provider.name)}
-            />
-          </motion.div>
-        ))}
-      </GridContainer>
-
-      <ViewProviderModal isOpen={activeModal === "view"} onClose={closeModal} providerId={selectedProviderId} />
-
-      <EditProviderModal isOpen={activeModal === "edit"} onClose={closeModal} providerId={selectedProviderId} />
-
-      <ContactProviderModal isOpen={activeModal === "contact"} onClose={closeModal} providerId={selectedProviderId} />
-
-      <DeleteProviderModal
-        isOpen={activeModal === "delete"}
-        onClose={closeModal}
-        providerId={selectedProviderId}
-        providerName={selectedProviderName}
-      />
-    </>
+    <GridContainer>
+      {providers.map((provider, index) => (
+        <motion.div
+          key={provider.id}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.1 }}
+        >
+          <ProviderCard
+            provider={provider}
+            onView={() => onView(provider.id)}
+            onEdit={() => onEdit(provider.id)}
+            onContact={() => onContact(provider.id)}
+            onDelete={() => onDelete(provider.id, provider.name)}
+          />
+        </motion.div>
+      ))}
+    </GridContainer>
   )
 }

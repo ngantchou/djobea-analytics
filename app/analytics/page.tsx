@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState, useEffect, Suspense } from "react"
+import { motion } from "framer-motion"
+import { apiClient } from "@/lib/api-client"
 import { AnalyticsStats } from "@/components/features/analytics/analytics-stats"
 import { AnalyticsCharts } from "@/components/features/analytics/analytics-charts"
 import { AnalyticsInsights } from "@/components/features/analytics/analytics-insights"
@@ -8,12 +10,29 @@ import { AnalyticsLeaderboard } from "@/components/features/analytics/analytics-
 import { AnalyticsQuickActions } from "@/components/features/analytics/analytics-quick-actions"
 import { AnalyticsFilters } from "@/components/features/analytics/analytics-filters"
 import { AnalyticsToolbar } from "@/components/analytics-toolbar"
-import { Card, CardContent } from "@/components/ui/card"
-import { useAnalyticsData } from "@/hooks/use-analytics-data"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { 
+  AlertCircle, 
+  RefreshCw
+} from "lucide-react"
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+}
 
 function AnalyticsLoadingSkeleton() {
   return (
@@ -65,13 +84,18 @@ function AnalyticsLoadingSkeleton() {
   )
 }
 
-function AnalyticsError({ error, onRetry }: { error: Error; onRetry: () => void }) {
+function AnalyticsError({ error, onRetry }: { error: any; onRetry: () => void }) {
   return (
     <Alert className="border-red-800 bg-red-900/20">
       <AlertCircle className="h-4 w-4 text-red-400" />
       <AlertDescription className="text-red-300">
         <div className="flex items-center justify-between">
-          <span>Erreur lors du chargement des données: {error.message}</span>
+          <div>
+            <p className="mb-2">Erreur lors du chargement des données analytiques</p>
+            <p className="text-sm text-red-400">
+              {error?.message || "Le backend analytique semble indisponible. Utilisation des données de démonstration."}
+            </p>
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -90,88 +114,94 @@ function AnalyticsError({ error, onRetry }: { error: Error; onRetry: () => void 
 function AnalyticsContent() {
   const [period, setPeriod] = useState("7d")
   const [filters, setFilters] = useState({})
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<any>(null)
 
-  const { data, isLoading, error, refetch } = useAnalyticsData(period)
+  const loadAnalyticsData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // Use API client for authenticated requests
+      const response = await apiClient.getAnalyticsData(period)
+      
+      if (response.success) {
+        setData(response.data)
+      } else {
+        throw new Error(response.error || 'Failed to fetch analytics data')
+      }
+    } catch (err) {
+      console.error('Analytics API error:', err)
+      setError(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadAnalyticsData()
+  }, [period])
 
   const handleFiltersChange = (newFilters: any) => {
     setFilters(newFilters)
   }
 
   const handleRefresh = () => {
-    refetch()
+    loadAnalyticsData()
   }
 
-  if (error) {
-    return <AnalyticsError error={error} onRetry={handleRefresh} />
+  if (loading) {
+    return <AnalyticsLoadingSkeleton />
   }
 
   return (
-    <div className="space-y-6">
+    <motion.div 
+      variants={containerVariants} 
+      initial="hidden" 
+      animate="visible" 
+      className="space-y-6"
+    >
+      {/* Error Banner */}
+      {error && (
+        <motion.div variants={itemVariants}>
+          <AnalyticsError error={error} onRetry={handleRefresh} />
+        </motion.div>
+      )}
+
       {/* Toolbar */}
-      <AnalyticsToolbar selectedPeriod={period} onPeriodChange={setPeriod} />
+      <motion.div variants={itemVariants}>
+        <AnalyticsToolbar selectedPeriod={period} onPeriodChange={setPeriod} />
+      </motion.div>
 
       {/* Filters */}
-      <AnalyticsFilters period={period} onPeriodChange={setPeriod} onFiltersChange={handleFiltersChange} />
+      <motion.div variants={itemVariants}>
+        <AnalyticsFilters period={period} onPeriodChange={setPeriod} onFiltersChange={handleFiltersChange} />
+      </motion.div>
 
       {/* Stats Grid */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i} className="bg-gray-900 border-gray-800">
-              <CardContent className="p-6">
-                <Skeleton className="h-20 bg-gray-800" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
+      <motion.div variants={itemVariants}>
         <AnalyticsStats data={data?.stats} period={period} />
-      )}
+      </motion.div>
 
       {/* Charts Section */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <Card key={i} className="bg-gray-900 border-gray-800">
-              <CardContent className="p-6">
-                <Skeleton className="h-80 bg-gray-800" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
+      <motion.div variants={itemVariants}>
         <AnalyticsCharts data={data?.charts} period={period} />
-      )}
+      </motion.div>
 
       {/* Bottom Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Insights */}
-        <div className="lg:col-span-2">
-          {isLoading ? (
-            <Card className="bg-gray-900 border-gray-800">
-              <CardContent className="p-6">
-                <Skeleton className="h-96 bg-gray-800" />
-              </CardContent>
-            </Card>
-          ) : (
-            <AnalyticsInsights data={data?.insights} />
-          )}
-        </div>
+        <motion.div variants={itemVariants} className="lg:col-span-2">
+          <AnalyticsInsights data={data?.insights} />
+        </motion.div>
 
         {/* Leaderboard */}
-        <div>
-          {isLoading ? (
-            <Card className="bg-gray-900 border-gray-800">
-              <CardContent className="p-6">
-                <Skeleton className="h-96 bg-gray-800" />
-              </CardContent>
-            </Card>
-          ) : (
-            <AnalyticsLeaderboard data={data?.leaderboard} />
-          )}
-        </div>
+        <motion.div variants={itemVariants}>
+          <AnalyticsLeaderboard data={data?.leaderboard} />
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -180,12 +210,16 @@ export default function AnalyticsPage() {
     <div className="min-h-screen bg-gray-950 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }} 
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
+        >
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Analytics</h1>
             <p className="text-gray-400">Analyse détaillée des performances et métriques</p>
           </div>
-        </div>
+        </motion.div>
 
         {/* Main Content */}
         <Suspense fallback={<AnalyticsLoadingSkeleton />}>
@@ -193,7 +227,13 @@ export default function AnalyticsPage() {
         </Suspense>
 
         {/* Quick Actions */}
-        <AnalyticsQuickActions />
+        <motion.div 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          <AnalyticsQuickActions />
+        </motion.div>
       </div>
     </div>
   )

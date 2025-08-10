@@ -4,7 +4,7 @@ import { useState } from "react"
 import styled from "styled-components"
 import { motion } from "framer-motion"
 import { Plus, Users, UserCheck, TrendingUp } from "lucide-react"
-import { Header } from "@/components/layouts/header"
+import { Header } from "@/components/header"
 import {
   ProvidersFilters,
   type ProvidersFilters as FiltersType,
@@ -12,6 +12,10 @@ import {
 import { ProvidersGrid } from "@/components/features/providers/providers-grid"
 import { ProvidersPagination } from "@/components/features/providers/providers-pagination"
 import { AddProviderModal } from "@/components/features/providers/add-provider-modal"
+import { ViewProviderModal } from "@/components/features/providers/view-provider-modal"
+import { EditProviderModal } from "@/components/features/providers/edit-provider-modal"
+import { ContactProviderModal } from "@/components/features/providers/contact-provider-modal"
+import { DeleteProviderModal } from "@/components/features/providers/delete-provider-modal"
 import { useProvidersData } from "@/hooks/use-providers-data"
 
 const PageContainer = styled.div`
@@ -166,7 +170,39 @@ export default function ProvidersPage() {
   const [pageSize, setPageSize] = useState(6)
   const [showAddModal, setShowAddModal] = useState(false)
 
-  const { data: providers, pagination, loading, error, refetch } = useProvidersData(filters, currentPage, pageSize)
+  // Modal states
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null)
+  const [selectedProviderName, setSelectedProviderName] = useState<string>("")
+  const [activeModal, setActiveModal] = useState<"view" | "edit" | "contact" | "delete" | null>(null)
+
+  // Fixed: Pass filters properly with correct interface
+  const apiFilters = {
+    page: currentPage,
+    limit: pageSize,
+    search: filters.search || undefined,
+    status: filters.status || undefined,
+    specialty: filters.specialty || undefined,
+    zone: filters.zone || undefined,
+    rating: filters.minRating ? Number.parseFloat(filters.minRating) : undefined,
+  }
+
+  const { data, loading, error, refetch } = useProvidersData(apiFilters)
+
+  // Extract providers and pagination from the response
+  const providers = data?.data || []
+  const pagination = data?.pagination || {
+    page: currentPage,
+    totalPages: 1,
+    total: 0,
+    hasNext: false,
+    hasPrev: false,
+  }
+  const stats = data?.stats || {
+    total: 0,
+    active: 0,
+    available: 0,
+    avgRating: 0,
+  }
 
   const handleFiltersChange = (newFilters: FiltersType) => {
     setFilters(newFilters)
@@ -191,22 +227,56 @@ export default function ProvidersPage() {
     refetch() // Refresh data after adding
   }
 
-  // Calculate stats from pagination info
-  const stats = {
+  // Modal handlers
+  const handleView = (providerId: string) => {
+    setSelectedProviderId(providerId)
+    setActiveModal("view")
+  }
+
+  const handleEdit = (providerId: string) => {
+    setSelectedProviderId(providerId)
+    setActiveModal("edit")
+  }
+
+  const handleContact = (providerId: string) => {
+    setSelectedProviderId(providerId)
+    setActiveModal("contact")
+  }
+
+  const handleDelete = (providerId: string, providerName: string) => {
+    setSelectedProviderId(providerId)
+    setSelectedProviderName(providerName)
+    setActiveModal("delete")
+  }
+
+  const closeModal = () => {
+    setActiveModal(null)
+    setSelectedProviderId(null)
+    setSelectedProviderName("")
+    refetch() // Refresh data after modal actions
+  }
+
+  // Create proper pagination object for the component
+  const paginationProps = {
+    page: pagination.page,
+    totalPages: pagination.totalPages || Math.ceil(pagination.total / pageSize),
     total: pagination.total,
-    active: Math.floor(pagination.total * 0.85), // Approximate
-    available: Math.floor(pagination.total * 0.6), // Approximate
-    avgRating: 4.5, // Static for now
+    startIndex: (pagination.page - 1) * pageSize + 1,
+    endIndex: Math.min(pagination.page * pageSize, pagination.total),
+    hasNextPage: pagination.hasNext,
+    hasPrevPage: pagination.hasPrev,
   }
 
   if (error) {
     return (
       <PageContainer>
-        <Header />
         <ContentContainer>
           <div style={{ textAlign: "center", padding: "4rem 2rem", color: "var(--text-secondary)" }}>
             <h2>Erreur de chargement</h2>
             <p>{error}</p>
+            <button onClick={refetch} style={{ marginTop: "1rem", padding: "0.5rem 1rem" }}>
+              Réessayer
+            </button>
           </div>
         </ContentContainer>
       </PageContainer>
@@ -271,7 +341,7 @@ export default function ProvidersPage() {
               <h3>Note Moyenne</h3>
               <TrendingUp />
             </div>
-            <div className="stat-value">{stats.avgRating.toFixed(1)}</div>
+            <div className="stat-value">{stats.avgRating?.toFixed(1) || "0.0"}</div>
             <div className="stat-change positive">
               <TrendingUp />
               +0.2 ce mois
@@ -279,24 +349,49 @@ export default function ProvidersPage() {
           </StatCard>
         </StatsGrid>
 
-        <ProvidersFilters filters={filters} onFiltersChange={handleFiltersChange} resultsCount={pagination.total} />
+        <ProvidersFilters 
+          filters={filters} 
+          onFiltersChange={handleFiltersChange} 
+          resultsCount={pagination.total} 
+        />
 
-        <ProvidersGrid providers={providers} loading={loading} />
+        <ProvidersGrid
+          providers={providers}
+          loading={loading}
+          onView={handleView}
+          onEdit={handleEdit}
+          onContact={handleContact}
+          onDelete={handleDelete}
+        />
 
         <ProvidersPagination
-          currentPage={pagination.page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          startIndex={pagination.startIndex}
-          endIndex={pagination.endIndex}
+          currentPage={paginationProps.page}
+          totalPages={paginationProps.totalPages}
+          total={paginationProps.total}
+          startIndex={paginationProps.startIndex}
+          endIndex={paginationProps.endIndex}
           pageSize={pageSize}
-          hasNextPage={pagination.hasNextPage}
-          hasPrevPage={pagination.hasPrevPage}
+          hasNextPage={paginationProps.hasNextPage}
+          hasPrevPage={paginationProps.hasPrevPage}
           onPageChange={handlePageChange}
           onPageSizeChange={handlePageSizeChange}
         />
 
+        {/* All Modals */}
         <AddProviderModal isOpen={showAddModal} onClose={handleCloseAddModal} />
+
+        <ViewProviderModal isOpen={activeModal === "view"} onClose={closeModal} providerId={selectedProviderId} />
+
+        <EditProviderModal isOpen={activeModal === "edit"} onClose={closeModal} providerId={selectedProviderId} />
+
+        <ContactProviderModal isOpen={activeModal === "contact"} onClose={closeModal} providerId={selectedProviderId} />
+
+        <DeleteProviderModal
+          isOpen={activeModal === "delete"}
+          onClose={closeModal}
+          providerId={selectedProviderId}
+          providerName={selectedProviderName}
+        />
       </ContentContainer>
     </PageContainer>
   )

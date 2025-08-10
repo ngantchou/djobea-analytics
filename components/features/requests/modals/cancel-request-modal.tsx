@@ -5,6 +5,7 @@ import { X, AlertTriangle } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import styled from "styled-components"
 import { useNotificationStore } from "@/store/use-notification-store"
+import { RequestsService } from "@/lib/services/requests-service"
 
 const ModalOverlay = styled(motion.div)`
   position: fixed;
@@ -61,6 +62,11 @@ const CloseButton = styled.button`
     background: var(--glass-bg);
     color: var(--text-primary);
   }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `
 
 const ModalBody = styled.div`
@@ -103,6 +109,11 @@ const Select = styled.select`
     outline: none;
     border-color: var(--primary-color);
   }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `
 
 const TextArea = styled.textarea`
@@ -119,6 +130,15 @@ const TextArea = styled.textarea`
   &:focus {
     outline: none;
     border-color: var(--primary-color);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &::placeholder {
+    color: var(--text-secondary);
   }
 `
 
@@ -140,13 +160,19 @@ const Button = styled.button.withConfig({
   transition: all 0.3s ease;
   border: none;
 
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
   ${(props) => {
     switch (props.variant) {
       case "danger":
         return `
           background: var(--danger-gradient);
           color: white;
-          &:hover {
+          &:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
           }
@@ -156,7 +182,7 @@ const Button = styled.button.withConfig({
           background: transparent;
           color: var(--text-secondary);
           border: 1px solid var(--border-color);
-          &:hover {
+          &:hover:not(:disabled) {
             background: var(--glass-bg);
           }
         `
@@ -168,9 +194,15 @@ interface CancelRequestModalProps {
   isOpen: boolean
   onClose: () => void
   requestId: string
+  onCancelSuccess?: () => void
 }
 
-export function CancelRequestModal({ isOpen, onClose, requestId }: CancelRequestModalProps) {
+export function CancelRequestModal({ 
+  isOpen, 
+  onClose, 
+  requestId,
+  onCancelSuccess 
+}: CancelRequestModalProps) {
   const { addNotification } = useNotificationStore()
   const [reason, setReason] = useState("")
   const [comments, setComments] = useState("")
@@ -182,6 +214,8 @@ export function CancelRequestModal({ isOpen, onClose, requestId }: CancelRequest
     "Demande incorrecte",
     "Prestataire non disponible",
     "Problème de paiement",
+    "Demande en double",
+    "Informations insuffisantes",
     "Autre",
   ]
 
@@ -199,35 +233,25 @@ export function CancelRequestModal({ isOpen, onClose, requestId }: CancelRequest
 
     setLoading(true)
     try {
-      const response = await fetch(`/api/requests/${requestId}/cancel`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          reason,
-          comments,
-        }),
-      })
+      const fullReason = comments ? `${reason} - ${comments}` : reason
+      
+      await RequestsService.cancelRequest(requestId, fullReason)
 
-      if (response.ok) {
-        addNotification({
-          id: Date.now().toString(),
-          message: `Demande #${requestId} annulée avec succès`,
-          type: "success",
-          timestamp: new Date(),
-          read: false,
-        })
-        onClose()
-        setReason("")
-        setComments("")
-      } else {
-        throw new Error("Failed to cancel request")
-      }
-    } catch (error) {
       addNotification({
         id: Date.now().toString(),
-        message: "Erreur lors de l'annulation",
+        message: `Demande #${requestId} annulée avec succès`,
+        type: "success",
+        timestamp: new Date(),
+        read: false,
+      })
+
+      onCancelSuccess?.()
+      handleClose()
+    } catch (error) {
+      console.error("Error cancelling request:", error)
+      addNotification({
+        id: Date.now().toString(),
+        message: error instanceof Error ? error.message : "Erreur lors de l'annulation",
         type: "error",
         timestamp: new Date(),
         read: false,
@@ -237,11 +261,24 @@ export function CancelRequestModal({ isOpen, onClose, requestId }: CancelRequest
     }
   }
 
+  const handleClose = () => {
+    if (!loading) {
+      setReason("")
+      setComments("")
+      onClose()
+    }
+  }
+
   if (!isOpen) return null
 
   return (
     <AnimatePresence>
-      <ModalOverlay initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <ModalOverlay 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        exit={{ opacity: 0 }} 
+        onClick={handleClose}
+      >
         <ModalContent
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -253,7 +290,7 @@ export function CancelRequestModal({ isOpen, onClose, requestId }: CancelRequest
               <AlertTriangle size={24} />
               Annuler la demande
             </ModalTitle>
-            <CloseButton onClick={onClose}>
+            <CloseButton onClick={handleClose} disabled={loading}>
               <X size={20} />
             </CloseButton>
           </ModalHeader>
@@ -270,7 +307,13 @@ export function CancelRequestModal({ isOpen, onClose, requestId }: CancelRequest
 
             <FormGroup>
               <Label htmlFor="reason">Raison de l'annulation *</Label>
-              <Select id="reason" value={reason} onChange={(e) => setReason(e.target.value)} required>
+              <Select 
+                id="reason" 
+                value={reason} 
+                onChange={(e) => setReason(e.target.value)} 
+                required
+                disabled={loading}
+              >
                 <option value="">Sélectionner une raison</option>
                 {cancelReasons.map((r) => (
                   <option key={r} value={r}>
@@ -287,13 +330,20 @@ export function CancelRequestModal({ isOpen, onClose, requestId }: CancelRequest
                 value={comments}
                 onChange={(e) => setComments(e.target.value)}
                 placeholder="Détails supplémentaires sur l'annulation..."
+                disabled={loading}
               />
             </FormGroup>
           </ModalBody>
 
           <ModalFooter>
-            <Button onClick={onClose}>Annuler</Button>
-            <Button variant="danger" onClick={handleCancel} disabled={loading || !reason}>
+            <Button onClick={handleClose} disabled={loading}>
+              Annuler
+            </Button>
+            <Button 
+              variant="danger" 
+              onClick={handleCancel} 
+              disabled={loading || !reason}
+            >
               {loading ? "Annulation..." : "Confirmer l'annulation"}
             </Button>
           </ModalFooter>

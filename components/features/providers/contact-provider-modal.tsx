@@ -186,7 +186,7 @@ export function ContactProviderModal({ isOpen, onClose, providerId }: ContactPro
   const { data: providers } = useProvidersData()
   const [message, setMessage] = useState("")
 
-  const provider = providers?.find((p) => p.id === providerId)
+  const provider = providers?.data?.find((p) => p.id === providerId)
 
   const handleCall = async () => {
     try {

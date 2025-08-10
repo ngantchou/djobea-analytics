@@ -352,12 +352,12 @@ export function ProviderCard({ provider, onView, onEdit, onContact, onDelete }: 
       <Services>
         <div className="label">Services</div>
         <div className="services-list">
-          {provider.services.slice(0, 3).map((service, index) => (
+          {provider?.services.slice(0, 3).map((service, index) => (
             <span key={index} className="service-tag">
               {service}
             </span>
           ))}
-          {provider.services.length > 3 && <span className="service-tag">+{provider.services.length - 3}</span>}
+          {provider?.services.length > 3 && <span className="service-tag">+{provider.services.length - 3}</span>}
         </div>
       </Services>
 

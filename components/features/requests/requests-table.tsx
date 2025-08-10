@@ -7,6 +7,10 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { AssignRequestModal } from "@/components/features/requests/modals/assign-request-modal"
+import { ContactProviderModal } from "@/components/features/requests/modals/contact-provider-modal"
+import { CancelRequestModal } from "@/components/features/requests/modals/cancel-request-modal"
+import { ViewRequestModal } from "@/components/features/requests/modals/view-request-modal"
 import {
   MoreHorizontal,
   User,
@@ -20,6 +24,12 @@ import {
   CheckCircle,
   Clock,
   XCircle,
+  ChevronLeft,
+  ChevronRight,
+  UserCheck,
+  Eye,
+  MessageCircle,
+  Ban,
 } from "lucide-react"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
@@ -37,7 +47,7 @@ interface Request {
   status: "pending" | "assigned" | "in-progress" | "completed" | "cancelled"
   createdAt: string
   updatedAt: string
-  scheduledDate?: string
+  scheduledDate?: string | null
   completedDate?: string
   assignedProvider?: {
     id: string
@@ -58,13 +68,14 @@ interface RequestsTableProps {
   loading?: boolean
   pagination?: {
     page: number
-    limit: number
+    limit?: number
     total: number
     totalPages: number
   }
-  onUpdateRequest?: (id: string, updates: Partial<Request>) => void
-  onAssignRequest?: (requestId: string, providerId: string, providerName: string) => void
-  onCancelRequest?: (requestId: string, reason: string) => void
+  onUpdateRequest?: (id: string, updates: any) => Promise<void>
+  onAssignRequest?: (requestId: string, assignData: any) => Promise<void>
+  onCancelRequest?: (requestId: string, reason: string) => Promise<void>
+  onPageChange?: (page: number) => void
 }
 
 export function RequestsTable({
@@ -74,8 +85,18 @@ export function RequestsTable({
   onUpdateRequest,
   onAssignRequest,
   onCancelRequest,
+  onPageChange,
 }: RequestsTableProps) {
   const [selectedRequest, setSelectedRequest] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [assignModalOpen, setAssignModalOpen] = useState(false)
+  const [assigningRequest, setAssigningRequest] = useState<Request | null>(null)
+  const [contactModalOpen, setContactModalOpen] = useState(false)
+  const [contactingRequest, setContactingRequest] = useState<Request | null>(null)
+  const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  const [cancellingRequest, setCancellingRequest] = useState<Request | null>(null)
+  const [viewModalOpen, setViewModalOpen] = useState(false)
+  const [viewingRequest, setViewingRequest] = useState<Request | null>(null)
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -114,7 +135,7 @@ export function RequestsTable({
       case "pending":
         return <Clock className="w-3 h-3" />
       case "assigned":
-        return <User className="w-3 h-3" />
+        return <UserCheck className="w-3 h-3" />
       case "in-progress":
         return <AlertTriangle className="w-3 h-3" />
       case "completed":
@@ -158,23 +179,84 @@ export function RequestsTable({
     }
   }
 
-  const handleStatusChange = (requestId: string, newStatus: string) => {
+  const handleStatusChange = async (requestId: string, newStatus: string) => {
+    if (!onUpdateRequest) return
+    
+    try {
+      setActionLoading(requestId)
+      await onUpdateRequest(requestId, { status: newStatus })
+    } catch (error) {
+      console.error("Failed to update request status:", error)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleAssign = async (request: Request) => {
+    setAssigningRequest(request)
+    setAssignModalOpen(true)
+  }
+
+  const handleAssignSuccess = () => {
+    // Refresh the data or trigger a callback
+    if (onUpdateRequest && assigningRequest) {
+      onUpdateRequest(assigningRequest.id, { status: "assigned" })
+    }
+    setAssignModalOpen(false)
+    setAssigningRequest(null)
+  }
+
+  const handleViewRequest = (request: Request) => {
+    setViewingRequest(request)
+    setViewModalOpen(true)
+  }
+
+  const handleContactProvider = (request: Request) => {
+    if (request.assignedProvider) {
+      setContactingRequest(request)
+      setContactModalOpen(true)
+    }
+  }
+
+  const handleCancelRequest = (request: Request) => {
+    setCancellingRequest(request)
+    setCancelModalOpen(true)
+  }
+
+  const handleModalSuccess = () => {
+    // Refresh the data
     if (onUpdateRequest) {
-      onUpdateRequest(requestId, { status: newStatus as any })
+      // Trigger a general refresh
+      window.location.reload()
     }
   }
 
-  const handleAssign = (requestId: string) => {
-    // In a real app, this would open a modal to select a provider
-    if (onAssignRequest) {
-      onAssignRequest(requestId, "PROV-001", "Jean-Baptiste Électricité")
+  const handleCancel = async (requestId: string) => {
+    if (!onCancelRequest) return
+    
+    try {
+      setActionLoading(requestId)
+      await onCancelRequest(requestId, "Annulé par l'administrateur")
+    } catch (error) {
+      console.error("Failed to cancel request:", error)
+    } finally {
+      setActionLoading(null)
     }
   }
 
-  const handleCancel = (requestId: string) => {
-    // In a real app, this would open a modal to enter cancellation reason
-    if (onCancelRequest) {
-      onCancelRequest(requestId, "Annulé par l'administrateur")
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), "dd MMM yyyy", { locale: fr })
+    } catch {
+      return dateString
+    }
+  }
+
+  const formatDateTime = (dateString: string) => {
+    try {
+      return format(new Date(dateString), "dd MMM yyyy à HH:mm", { locale: fr })
+    } catch {
+      return dateString
     }
   }
 
@@ -286,7 +368,7 @@ export function RequestsTable({
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
-                        {format(new Date(request.createdAt), "dd MMM yyyy", { locale: fr })}
+                        {formatDate(request.createdAt)}
                       </div>
                     </div>
 
@@ -309,7 +391,7 @@ export function RequestsTable({
                     <div className="flex items-center gap-4 text-sm">
                       <div className="flex items-center gap-1 text-gray-600">
                         <DollarSign className="w-3 h-3" />
-                        <span>{request.estimatedCost.toLocaleString()} FCFA</span>
+                        <span>{request.estimatedCost > 0 ? `${request.estimatedCost.toLocaleString()} FCFA` : "À définir"}</span>
                       </div>
                       {request.rating && (
                         <div className="flex items-center gap-1 text-yellow-600">
@@ -317,6 +399,73 @@ export function RequestsTable({
                           <span>{request.rating}/5</span>
                         </div>
                       )}
+                      
+                      {/* Quick Actions */}
+                      <div className="flex items-center gap-2 ml-auto">
+                        {/* Mark In Progress button for pending/assigned requests */}
+                        {(request.status === "pending" || request.status === "assigned") && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleStatusChange(request.id, "in-progress")
+                            }}
+                            disabled={actionLoading === request.id}
+                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                          >
+                            <AlertTriangle className="w-4 h-4 mr-1" />
+                            En cours
+                          </Button>
+                        )}
+
+                        {/* Complete button for in-progress requests */}
+                        {request.status === "in-progress" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleStatusChange(request.id, "completed")
+                            }}
+                            disabled={actionLoading === request.id}
+                            className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Terminer
+                          </Button>
+                        )}
+
+                        {/* Cancel button for non-completed/cancelled requests */}
+                        {!["completed", "cancelled"].includes(request.status) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleCancelRequest(request)
+                            }}
+                            disabled={actionLoading === request.id}
+                            className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Annuler
+                          </Button>
+                        )}
+
+                        {/* View button */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleViewRequest(request)
+                          }}
+                          className="text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -329,39 +478,31 @@ export function RequestsTable({
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" disabled={actionLoading === request.id}>
                         <MoreHorizontal className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleViewRequest(request)}>
+                        <Eye className="w-4 h-4 mr-2" />
+                        Voir les détails
+                      </DropdownMenuItem>
+                      
                       {request.status === "pending" && (
-                        <>
-                          <DropdownMenuItem onClick={() => handleAssign(request.id)}>
-                            Assigner un prestataire
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(request.id, "in-progress")}>
-                            Marquer en cours
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      {request.status === "assigned" && (
-                        <DropdownMenuItem onClick={() => handleStatusChange(request.id, "in-progress")}>
-                          Marquer en cours
+                        <DropdownMenuItem onClick={() => handleAssign(request)}>
+                          <UserCheck className="w-4 h-4 mr-2" />
+                          Assigner un prestataire
                         </DropdownMenuItem>
                       )}
-                      {request.status === "in-progress" && (
-                        <DropdownMenuItem onClick={() => handleStatusChange(request.id, "completed")}>
-                          Marquer terminée
+
+                      {request.assignedProvider && ["assigned", "in-progress"].includes(request.status) && (
+                        <DropdownMenuItem onClick={() => handleContactProvider(request)}>
+                          <MessageCircle className="w-4 h-4 mr-2" />
+                          Contacter le prestataire
                         </DropdownMenuItem>
                       )}
-                      {!["completed", "cancelled"].includes(request.status) && (
-                        <DropdownMenuItem
-                          onClick={() => handleCancel(request.id)}
-                          className="text-red-600 focus:text-red-600"
-                        >
-                          Annuler la demande
-                        </DropdownMenuItem>
-                      )}
+
+                      {/* Status change actions are now in quick buttons, keep only specialized actions in dropdown */}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -375,32 +516,168 @@ export function RequestsTable({
                       <div className="space-y-1 text-gray-600">
                         <p>Adresse: {request.address}</p>
                         {request.notes && <p>Notes: {request.notes}</p>}
+                        <p>ID: {request.id}</p>
                       </div>
                     </div>
                     <div>
                       <h4 className="font-medium text-gray-900 mb-2">Informations de service</h4>
                       <div className="space-y-1 text-gray-600">
+                        <p>Créé: {formatDateTime(request.createdAt)}</p>
+                        <p>Mis à jour: {formatDateTime(request.updatedAt)}</p>
                         {request.scheduledDate && (
-                          <p>
-                            Programmé: {format(new Date(request.scheduledDate), "dd MMM yyyy à HH:mm", { locale: fr })}
-                          </p>
+                          <p>Programmé: {formatDateTime(request.scheduledDate)}</p>
                         )}
                         {request.completedDate && (
-                          <p>
-                            Terminé: {format(new Date(request.completedDate), "dd MMM yyyy à HH:mm", { locale: fr })}
-                          </p>
+                          <p>Terminé: {formatDateTime(request.completedDate)}</p>
                         )}
                         {request.finalCost && <p>Coût final: {request.finalCost.toLocaleString()} FCFA</p>}
                         {request.feedback && <p>Commentaire: {request.feedback}</p>}
                       </div>
                     </div>
                   </div>
+                  
+                  {request.images && request.images.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-medium text-gray-900 mb-2">Images</h4>
+                      <div className="flex gap-2 flex-wrap">
+                        {request.images.map((image, index) => (
+                          <img
+                            key={index}
+                            src={image}
+                            alt={`Image ${index + 1}`}
+                            className="w-20 h-20 object-cover rounded border"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           ))}
         </div>
+
+        {/* Pagination */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t">
+            <div className="text-sm text-gray-600">
+              Page {pagination.page} sur {pagination.totalPages}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange?.(pagination.page - 1)}
+                disabled={pagination.page <= 1 || loading}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Précédent
+              </Button>
+              
+              {/* Page numbers */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (pagination.totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else {
+                    const current = pagination.page;
+                    const total = pagination.totalPages;
+                    if (current <= 3) {
+                      pageNum = i + 1;
+                    } else if (current >= total - 2) {
+                      pageNum = total - 4 + i;
+                    } else {
+                      pageNum = current - 2 + i;
+                    }
+                  }
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={pagination.page === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => onPageChange?.(pageNum)}
+                      disabled={loading}
+                      className="w-8 h-8 p-0"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange?.(pagination.page + 1)}
+                disabled={pagination.page >= pagination.totalPages || loading}
+              >
+                Suivant
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
+
+      {/* All Modals */}
+      {assigningRequest && (
+        <AssignRequestModal
+          isOpen={assignModalOpen}
+          onClose={() => {
+            setAssignModalOpen(false)
+            setAssigningRequest(null)
+          }}
+          requestId={assigningRequest.id}
+          serviceType={assigningRequest.serviceType}
+          location={assigningRequest.location}
+          onAssignSuccess={handleAssignSuccess}
+        />
+      )}
+
+      {contactingRequest && contactingRequest.assignedProvider && (
+        <ContactProviderModal
+          isOpen={contactModalOpen}
+          onClose={() => {
+            setContactModalOpen(false)
+            setContactingRequest(null)
+          }}
+          requestId={contactingRequest.id}
+          provider={{
+            id: contactingRequest.assignedProvider.id,
+            name: contactingRequest.assignedProvider.name,
+            phone: contactingRequest.assignedProvider.phone || "",
+            email: contactingRequest.assignedProvider.email || "",
+            rating: contactingRequest.assignedProvider.rating,
+          }}
+        />
+      )}
+
+      {cancellingRequest && (
+        <CancelRequestModal
+          isOpen={cancelModalOpen}
+          onClose={() => {
+            setCancelModalOpen(false)
+            setCancellingRequest(null)
+          }}
+          requestId={cancellingRequest.id}
+          onCancelSuccess={handleModalSuccess}
+        />
+      )}
+
+      {viewingRequest && (
+        <ViewRequestModal
+          isOpen={viewModalOpen}
+          onClose={() => {
+            setViewModalOpen(false)
+            setViewingRequest(null)
+          }}
+          request={viewingRequest}
+          onUpdate={handleModalSuccess}
+        />
+      )}
     </Card>
   )
 }

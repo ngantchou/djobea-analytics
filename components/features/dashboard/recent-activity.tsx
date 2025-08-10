@@ -1,15 +1,26 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useDashboardData } from "@/hooks/use-dashboard-data"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Clock, User, FileText, DollarSign, CheckCircle, AlertCircle, ArrowRight } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { apiClient } from "@/lib/api-client"
+import { Button } from "@/components/ui/button"
+import { formatDistanceToNow } from "date-fns"
+import { fr } from "date-fns/locale"
+import { User, FileText, AlertCircle, Clock, MessageSquare,DollarSign, CheckCircle, ArrowRight } from "lucide-react"
 import { logger } from "@/lib/logger"
+import { useRouter } from "next/navigation"
 
+interface ActivityItem {
+  id: string
+  type: "request" | "provider" | "message" | "system"
+  title: string
+  description: string
+  timestamp: string
+  status?: "success" | "warning" | "error" | "info"
+  user?: string
+}
 interface Activity {
   id: string
   type: "request" | "provider" | "payment" | "completion"
@@ -20,81 +31,90 @@ interface Activity {
   status: "success" | "pending" | "warning" | "error"
   metadata?: Record<string, any>
 }
+function getActivityIcon(type: string) {
+  switch (type) {
+    case "request":
+      return <FileText className="h-4 w-4" />
+    case "provider":
+      return <User className="h-4 w-4" />
+    case "message":
+      return <MessageSquare className="h-4 w-4" />
+    case "system":
+      return <AlertCircle className="h-4 w-4" />
+    default:
+      return <Clock className="h-4 w-4" />
+  }
+}
+
+function getStatusBadge(status?: string) {
+  switch (status) {
+    case "success":
+      return (
+        <Badge variant="default" className="bg-green-100 text-green-800">
+          Succès
+        </Badge>
+      )
+    case "warning":
+      return (
+        <Badge variant="default" className="bg-yellow-100 text-yellow-800">
+          Attention
+        </Badge>
+      )
+    case "error":
+      return <Badge variant="destructive">Erreur</Badge>
+    case "info":
+      return <Badge variant="secondary">Info</Badge>
+    default:
+      return null
+  }
+}
+
+function ActivitySkeleton() {
+  return (
+    <div className="space-y-4">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex items-start space-x-3">
+          <Skeleton className="h-8 w-8 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+          <Skeleton className="h-6 w-16" />
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export function RecentActivity() {
+  const { data, loading, error } = useDashboardData()
   const router = useRouter()
-  const [activities, setActivities] = useState<Activity[]>([])
-  const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const loadActivities = async () => {
-      try {
-        setIsLoading(true)
-        const response = await apiClient.getDashboardData()
+  const handleActivityClick = (activity: Activity) => {
+    logger.logUserAction("activity_click", { type: activity.type, id: activity.id })
 
-        if (response.success && response.data?.recentActivity) {
-          setActivities(response.data.recentActivity)
-        } else {
-          // Données par défaut
-          setActivities([
-            {
-              id: "1",
-              type: "request",
-              title: "Nouvelle demande de plomberie",
-              description: "Réparation fuite d'eau - Bonamoussadi",
-              user: "Marie Ngo",
-              timestamp: "Il y a 5 minutes",
-              status: "pending",
-            },
-            {
-              id: "2",
-              type: "completion",
-              title: "Service terminé",
-              description: "Installation électrique complétée",
-              user: "Jean Baptiste",
-              timestamp: "Il y a 15 minutes",
-              status: "success",
-            },
-            {
-              id: "3",
-              type: "provider",
-              title: "Nouveau prestataire",
-              description: "Paul Menuiserie a rejoint la plateforme",
-              user: "Paul Essomba",
-              timestamp: "Il y a 1 heure",
-              status: "success",
-            },
-            {
-              id: "4",
-              type: "payment",
-              title: "Paiement reçu",
-              description: "25,000 FCFA - Service de nettoyage",
-              user: "Système",
-              timestamp: "Il y a 2 heures",
-              status: "success",
-            },
-            {
-              id: "5",
-              type: "request",
-              title: "Demande urgente",
-              description: "Panne électrique - Akwa",
-              user: "Pierre Biya",
-              timestamp: "Il y a 3 heures",
-              status: "warning",
-            },
-          ])
-        }
-      } catch (error) {
-        logger.error("Erreur lors du chargement de l'activité récente", error)
-        setActivities([])
-      } finally {
-        setIsLoading(false)
-      }
+    switch (activity.type) {
+      case "request":
+        router.push("/requests")
+        break
+      case "provider":
+        router.push("/providers")
+        break
+      case "payment":
+        router.push("/finances")
+        break
+      case "completion":
+        router.push("/requests")
+        break
+      default:
+        router.push("/analytics")
     }
+  }
 
-    loadActivities()
-  }, [])
-
+  const handleViewAllActivity = () => {
+    logger.logUserAction("view_all_activity")
+    router.push("/analytics")
+  }
   const getActivityIcon = (type: string) => {
     switch (type) {
       case "request":
@@ -139,55 +159,38 @@ export function RecentActivity() {
         return "bg-gray-900/30 text-gray-400 border-gray-700"
     }
   }
-
-  const handleActivityClick = (activity: Activity) => {
-    logger.logUserAction("activity_click", { type: activity.type, id: activity.id })
-
-    switch (activity.type) {
-      case "request":
-        router.push("/requests")
-        break
-      case "provider":
-        router.push("/providers")
-        break
-      case "payment":
-        router.push("/finances")
-        break
-      case "completion":
-        router.push("/requests")
-        break
-      default:
-        router.push("/analytics")
-    }
-  }
-
-  const handleViewAllActivity = () => {
-    logger.logUserAction("view_all_activity")
-    router.push("/analytics")
-  }
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <Card className="bg-gray-800/50 border-gray-700">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-white">Activité Récente</CardTitle>
+          <CardTitle>Activité Récente</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center space-x-4 animate-pulse">
-                <div className="w-10 h-10 bg-gray-700 rounded-full"></div>
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-700 rounded w-3/4"></div>
-                  <div className="h-3 bg-gray-700 rounded w-1/2"></div>
-                </div>
-              </div>
-            ))}
+          <ActivitySkeleton />
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Activité Récente</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Erreur lors du chargement de l'activité</p>
           </div>
         </CardContent>
       </Card>
     )
   }
+
+  // Use real data from backend or fallback to mock data
+  const activities: Activity[] = data?.recentActivity?.requests?.slice(0,4) || []
+
 
   return (
     <Card className="bg-gray-800/50 border-gray-700">

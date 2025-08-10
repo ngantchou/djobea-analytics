@@ -1,7 +1,5 @@
 "use client"
-
-import type React from "react"
-import { createContext, useContext, useState, useCallback } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 
 interface Notification {
   id: string
@@ -14,11 +12,11 @@ interface Notification {
 
 interface NotificationContextType {
   notifications: Notification[]
+  unreadCount: number
   addNotification: (notification: Omit<Notification, "id" | "timestamp" | "read">) => void
   markAsRead: (id: string) => void
   markAllAsRead: () => void
   removeNotification: (id: string) => void
-  unreadCount: number
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
@@ -31,68 +29,116 @@ export function useNotifications() {
   return context
 }
 
-export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      title: "Nouvelle demande",
-      message: "Une nouvelle demande de plomberie a été reçue",
-      type: "info",
-      timestamp: new Date(Date.now() - 5 * 60 * 1000),
-      read: false,
-    },
-    {
-      id: "2",
-      title: "Prestataire approuvé",
-      message: "Jean Dupont a été approuvé comme prestataire",
-      type: "success",
-      timestamp: new Date(Date.now() - 15 * 60 * 1000),
-      read: false,
-    },
-    {
-      id: "3",
-      title: "Paiement en attente",
-      message: "Le paiement pour la demande #123 est en attente",
-      type: "warning",
-      timestamp: new Date(Date.now() - 30 * 60 * 1000),
-      read: true,
-    },
-  ])
+interface NotificationProviderProps {
+  children: ReactNode
+}
 
-  const addNotification = useCallback((notification: Omit<Notification, "id" | "timestamp" | "read">) => {
+export function NotificationProvider({ children }: NotificationProviderProps) {
+  const [notifications, setNotifications] = useState<Notification[]>([])
+
+  useEffect(() => {
+    // Load notifications from localStorage
+    const saved = localStorage.getItem("djobea_notifications")
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved).map((n: any) => ({
+          ...n,
+          timestamp: new Date(n.timestamp),
+        }))
+        setNotifications(parsed)
+      } catch (error) {
+        console.error("Error loading notifications:", error)
+      }
+    } else {
+      // Add some sample notifications
+      const sampleNotifications: Notification[] = [
+        {
+          id: "1",
+          title: "Nouvelle demande reçue",
+          message: "Une nouvelle demande de plomberie a été soumise",
+          type: "info",
+          timestamp: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
+          read: false,
+        },
+        {
+          id: "2",
+          title: "Prestataire approuvé",
+          message: "Jean Dupont a été approuvé comme prestataire",
+          type: "success",
+          timestamp: new Date(Date.now() - 15 * 60 * 1000), // 15 minutes ago
+          read: false,
+        },
+        {
+          id: "3",
+          title: "Paiement en attente",
+          message: "Facture #1234 en attente de paiement",
+          type: "warning",
+          timestamp: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
+          read: true,
+        },
+      ]
+      setNotifications(sampleNotifications)
+      localStorage.setItem("djobea_notifications", JSON.stringify(sampleNotifications))
+    }
+  }, [])
+
+  const saveNotifications = (newNotifications: Notification[]) => {
+    localStorage.setItem("djobea_notifications", JSON.stringify(newNotifications))
+  }
+
+  const addNotification = (notification: Omit<Notification, "id" | "timestamp" | "read">) => {
     const newNotification: Notification = {
       ...notification,
       id: Date.now().toString(),
       timestamp: new Date(),
       read: false,
     }
-    setNotifications((prev) => [newNotification, ...prev])
-  }, [])
 
-  const markAsRead = useCallback((id: string) => {
-    setNotifications((prev) =>
-      prev.map((notification) => (notification.id === id ? { ...notification, read: true } : notification)),
-    )
-  }, [])
+    setNotifications((prev) => {
+      const updated = [newNotification, ...prev]
+      saveNotifications(updated)
+      return updated
+    })
+  }
 
-  const markAllAsRead = useCallback(() => {
-    setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })))
-  }, [])
+  const markAsRead = (id: string) => {
+    setNotifications((prev) => {
+      const updated = prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      saveNotifications(updated)
+      return updated
+    })
+  }
 
-  const removeNotification = useCallback((id: string) => {
-    setNotifications((prev) => prev.filter((notification) => notification.id !== id))
-  }, [])
+  const markAllAsRead = () => {
+    setNotifications((prev) => {
+      const updated = prev.map((n) => ({ ...n, read: true }))
+      saveNotifications(updated)
+      return updated
+    })
+  }
+
+  const removeNotification = (id: string) => {
+    setNotifications((prev) => {
+      const updated = prev.filter((n) => n.id !== id)
+      saveNotifications(updated)
+      return updated
+    })
+  }
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
-  const value: NotificationContextType = {
-    notifications,
-    addNotification,
-    markAsRead,
-    markAllAsRead,
-    removeNotification,
-    unreadCount,
-  }
-
-  return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>
+  return (
+    <NotificationContext.Provider
+      value={{
+        notifications,
+        unreadCount,
+        addNotification,
+        markAsRead,
+        markAllAsRead,
+        removeNotification,
+      }}
+    >
+      {children}
+    </NotificationContext.Provider>
+  )
 }

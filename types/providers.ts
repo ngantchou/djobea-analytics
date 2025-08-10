@@ -2,19 +2,25 @@ export interface Provider {
   id: string
   name: string
   phone: string
-  email: string
+  whatsapp?: string
+  email?: string
   services: string[]
   coverageAreas: string[]
+  hourlyRate?: number
+  experience?: number
+  description?: string
   rating: number
   reviewCount: number
+  status: "active" | "inactive"
+  availability: "available" | "busy"
+  performanceStatus: "excellent" | "good" | "warning" | "danger"
   totalMissions: number
   successRate: number
   responseTime: number
-  performanceStatus: "excellent" | "good" | "warning" | "danger"
-  status: "active" | "inactive" | "suspended"
+  joinDate?: string
+  acceptanceRate?: number
   specialty: string
   zone: string
-  joinDate: string
   lastActivity: string
   completedJobs: number
   cancelledJobs: number

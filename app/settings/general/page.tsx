@@ -70,7 +70,7 @@ const timezones = [
 ]
 
 export default function GeneralSettingsPage() {
-  const { general, updateGeneral, saveSettings, isLoading } = useSettingsStore()
+  const { general, updateGeneral, saveSettings, isLoading, loadSettings, addZone, updateZone, deleteZone, addService, updateService, deleteService } = useSettingsStore()
   const [localSettings, setLocalSettings] = useState(general)
   const [newZoneName, setNewZoneName] = useState("")
   const [newZoneDescription, setNewZoneDescription] = useState("")
@@ -80,6 +80,11 @@ export default function GeneralSettingsPage() {
   const [editingService, setEditingService] = useState<string | null>(null)
   const [editServiceName, setEditServiceName] = useState("")
   const [editServiceDescription, setEditServiceDescription] = useState("")
+
+  useEffect(() => {
+    // Load settings from API when component mounts
+    loadSettings()
+  }, [loadSettings])
 
   useEffect(() => {
     if (general) {
@@ -120,36 +125,33 @@ export default function GeneralSettingsPage() {
     }, 1500)
   }
 
-  const addZone = () => {
+  const handleAddZone = async () => {
     if (!newZoneName.trim()) {
       toast.error("Le nom de la zone est requis")
       return
     }
 
-    const newZone = {
-      id: newZoneName.toLowerCase().replace(/\s+/g, "-"),
-      name: newZoneName,
-      description: newZoneDescription || "Nouvelle zone de service",
-      status: "inactive" as const,
-      requestCount: 0,
+    try {
+      await addZone({
+        name: newZoneName,
+        description: newZoneDescription || "Nouvelle zone de service"
+      })
+      
+      setNewZoneName("")
+      setNewZoneDescription("")
+      toast.success("Zone ajoutée avec succès")
+    } catch (error) {
+      toast.error("Erreur lors de l'ajout de la zone")
     }
-
-    setLocalSettings({
-      ...localSettings,
-      zones: [...(localSettings.zones || []), newZone],
-    })
-
-    setNewZoneName("")
-    setNewZoneDescription("")
-    toast.success("Zone ajoutée avec succès")
   }
 
-  const removeZone = (zoneId: string) => {
-    setLocalSettings({
-      ...localSettings,
-      zones: (localSettings.zones || []).filter((zone) => zone.id !== zoneId),
-    })
-    toast.success("Zone supprimée")
+  const handleRemoveZone = async (zoneId: string) => {
+    try {
+      await deleteZone(zoneId)
+      toast.success("Zone supprimée")
+    } catch (error) {
+      toast.error("Erreur lors de la suppression de la zone")
+    }
   }
 
   const toggleZoneStatus = (zoneId: string) => {
@@ -179,50 +181,34 @@ export default function GeneralSettingsPage() {
     })
   }
 
-  const addService = () => {
+  const handleAddService = async () => {
     if (!newServiceName.trim()) {
       toast.error("Le nom du service est requis")
       return
     }
 
-    const newService = {
-      id: newServiceName.toLowerCase().replace(/\s+/g, "-"),
-      name: newServiceName,
-      description: newServiceDescription || "Nouveau service",
-      active: true,
-      commission: localSettings.economicModel?.defaultCommission || 15,
+    try {
+      await addService({
+        name: newServiceName,
+        description: newServiceDescription || "Nouveau service",
+        commission: localSettings.economicModel?.defaultCommission || 15
+      })
+      
+      setNewServiceName("")
+      setNewServiceDescription("")
+      toast.success("Service ajouté avec succès")
+    } catch (error) {
+      toast.error("Erreur lors de l'ajout du service")
     }
-
-    setLocalSettings({
-      ...localSettings,
-      services: [...(localSettings.services || []), newService],
-      economicModel: {
-        ...localSettings.economicModel,
-        serviceCommissions: {
-          ...localSettings.economicModel.serviceCommissions,
-          [newService.id]: newService.commission,
-        },
-      },
-    })
-
-    setNewServiceName("")
-    setNewServiceDescription("")
-    toast.success("Service ajouté avec succès")
   }
 
-  const removeService = (serviceId: string) => {
-    const updatedCommissions = { ...localSettings.economicModel.serviceCommissions }
-    delete updatedCommissions[serviceId]
-
-    setLocalSettings({
-      ...localSettings,
-      services: (localSettings.services || []).filter((service) => service.id !== serviceId),
-      economicModel: {
-        ...localSettings.economicModel,
-        serviceCommissions: updatedCommissions,
-      },
-    })
-    toast.success("Service supprimé")
+  const handleRemoveService = async (serviceId: string) => {
+    try {
+      await deleteService(serviceId)
+      toast.success("Service supprimé")
+    } catch (error) {
+      toast.error("Erreur lors de la suppression du service")
+    }
   }
 
   const toggleServiceStatus = (serviceId: string) => {
@@ -240,25 +226,27 @@ export default function GeneralSettingsPage() {
     setEditServiceDescription(service.description)
   }
 
-  const saveEditService = () => {
+  const saveEditService = async () => {
     if (!editServiceName.trim()) {
       toast.error("Le nom du service est requis")
       return
     }
 
-    setLocalSettings({
-      ...localSettings,
-      services: (localSettings.services || []).map((service) =>
-        service.id === editingService
-          ? { ...service, name: editServiceName, description: editServiceDescription }
-          : service,
-      ),
-    })
-
-    setEditingService(null)
-    setEditServiceName("")
-    setEditServiceDescription("")
-    toast.success("Service modifié avec succès")
+    if (!editingService) return
+    
+    try {
+      await updateService(editingService, {
+        name: editServiceName,
+        description: editServiceDescription
+      })
+      
+      setEditingService(null)
+      setEditServiceName("")
+      setEditServiceDescription("")
+      toast.success("Service modifié avec succès")
+    } catch (error) {
+      toast.error("Erreur lors de la modification du service")
+    }
   }
 
   const cancelEditService = () => {
@@ -273,23 +261,27 @@ export default function GeneralSettingsPage() {
     setNewZoneDescription(zone.description)
   }
 
-  const saveEditZone = () => {
+  const saveEditZone = async () => {
     if (!newZoneName.trim()) {
       toast.error("Le nom de la zone est requis")
       return
     }
 
-    setLocalSettings({
-      ...localSettings,
-      zones: (localSettings.zones || []).map((zone) =>
-        zone.id === editingZone ? { ...zone, name: newZoneName, description: newZoneDescription } : zone,
-      ),
-    })
-
-    setEditingZone(null)
-    setNewZoneName("")
-    setNewZoneDescription("")
-    toast.success("Zone modifiée avec succès")
+    if (!editingZone) return
+    
+    try {
+      await updateZone(editingZone, {
+        name: newZoneName,
+        description: newZoneDescription
+      })
+      
+      setEditingZone(null)
+      setNewZoneName("")
+      setNewZoneDescription("")
+      toast.success("Zone modifiée avec succès")
+    } catch (error) {
+      toast.error("Erreur lors de la modification de la zone")
+    }
   }
 
   const cancelEditZone = () => {
@@ -527,7 +519,7 @@ export default function GeneralSettingsPage() {
                         onChange={(e) => setNewZoneDescription(e.target.value)}
                         className="bg-white/5 border-white/10 text-white"
                       />
-                      <Button onClick={addZone} className="bg-green-600 hover:bg-green-700">
+                      <Button onClick={handleAddZone} className="bg-green-600 hover:bg-green-700">
                         <Plus className="w-4 h-4 mr-2" />
                         Ajouter
                       </Button>
@@ -599,7 +591,7 @@ export default function GeneralSettingsPage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => removeZone(zone.id)}
+                                onClick={() => handleRemoveZone(zone.id)}
                                 className="text-gray-400 hover:text-red-400"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -650,7 +642,7 @@ export default function GeneralSettingsPage() {
                         onChange={(e) => setNewServiceDescription(e.target.value)}
                         className="bg-white/5 border-white/10 text-white"
                       />
-                      <Button onClick={addService} className="bg-purple-600 hover:bg-purple-700">
+                      <Button onClick={handleAddService} className="bg-purple-600 hover:bg-purple-700">
                         <Plus className="w-4 h-4 mr-2" />
                         Ajouter
                       </Button>
@@ -735,7 +727,7 @@ export default function GeneralSettingsPage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => removeService(service.id)}
+                                onClick={() => handleRemoveService(service.id)}
                                 className="text-gray-400 hover:text-red-400"
                               >
                                 <Trash2 className="w-4 h-4" />

@@ -1,10 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, Star, Search } from "lucide-react"
+import { X, Star, Search, MapPin, Clock, User } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import styled from "styled-components"
 import { useNotificationStore } from "@/store/use-notification-store"
+import { providersService } from "@/lib/services/providers-service"
+import { RequestsService } from "@/lib/services/requests-service"
+import type { Provider } from "@/lib/services/providers-service"
 
 const ModalOverlay = styled(motion.div)`
   position: fixed;
@@ -26,7 +29,7 @@ const ModalContent = styled(motion.div)`
   border-radius: 16px;
   border: 1px solid var(--border-color);
   width: 100%;
-  max-width: 700px;
+  max-width: 800px;
   max-height: 90vh;
   overflow-y: auto;
   position: relative;
@@ -44,6 +47,16 @@ const ModalTitle = styled.h2`
   font-size: 1.5rem;
   font-weight: 600;
   margin: 0;
+  color: var(--text-primary);
+`
+
+const ServiceTypeIndicator = styled.div`
+  background: var(--primary-gradient);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
 `
 
 const CloseButton = styled.button`
@@ -83,6 +96,10 @@ const SearchInput = styled.input`
     outline: none;
     border-color: var(--primary-color);
   }
+
+  &::placeholder {
+    color: var(--text-secondary);
+  }
 `
 
 const SearchIcon = styled.div`
@@ -90,6 +107,20 @@ const SearchIcon = styled.div`
   left: 1rem;
   top: 50%;
   transform: translateY(-50%);
+  color: var(--text-secondary);
+`
+
+const LoadingState = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 3rem;
+  color: var(--text-secondary);
+`
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 3rem;
   color: var(--text-secondary);
 `
 
@@ -110,11 +141,37 @@ const ProviderCard = styled.div.withConfig({
   padding: 1.5rem;
   cursor: pointer;
   transition: all 0.3s ease;
+  position: relative;
+
+  ${(props) => props.selected && `
+    background: rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+  `}
 
   &:hover {
     border-color: var(--primary-color);
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
+
+  ${(props) => props.selected && `
+    &::before {
+      content: "✓";
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      width: 24px;
+      height: 24px;
+      background: var(--primary-color);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+    }
+  `}
 `
 
 const ProviderHeader = styled.div`
@@ -152,11 +209,28 @@ const ProviderName = styled.div`
   font-size: 1.1rem;
   font-weight: 600;
   margin-bottom: 0.25rem;
+  color: var(--text-primary);
 `
 
 const ProviderSpecialty = styled.div`
   color: var(--text-secondary);
   font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+`
+
+const ProviderZone = styled.div`
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+`
+
+const ProviderBadges = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-end;
 `
 
 const ProviderScore = styled.div`
@@ -171,9 +245,18 @@ const ProviderScore = styled.div`
   font-weight: 600;
 `
 
+const AvailabilityBadge = styled.div<{ available: boolean }>`
+  padding: 0.25rem 0.75rem;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: ${props => props.available ? 'var(--success-gradient)' : 'var(--warning-gradient)'};
+  color: white;
+`
+
 const ProviderStats = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
   margin-top: 1rem;
 `
@@ -195,6 +278,20 @@ const StatLabel = styled.div`
   letter-spacing: 0.5px;
 `
 
+const ProviderMeta = styled.div`
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+`
+
+const MetaItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`
+
 const ModalFooter = styled.div`
   padding: 2rem;
   border-top: 1px solid var(--border-color);
@@ -212,6 +309,11 @@ const Button = styled.button.withConfig({
   cursor: pointer;
   transition: all 0.3s ease;
   border: none;
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 
   ${(props) => {
     switch (props.variant) {
@@ -219,7 +321,7 @@ const Button = styled.button.withConfig({
         return `
           background: var(--primary-gradient);
           color: white;
-          &:hover {
+          &:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
           }
@@ -229,7 +331,7 @@ const Button = styled.button.withConfig({
           background: transparent;
           color: var(--text-secondary);
           border: 1px solid var(--border-color);
-          &:hover {
+          &:hover:not(:disabled) {
             background: var(--glass-bg);
           }
         `
@@ -237,44 +339,49 @@ const Button = styled.button.withConfig({
   }}
 `
 
-interface Provider {
-  id: string
-  name: string
-  specialty: string
-  rating: number
-  completedJobs: number
-  distance: string
-  responseTime: string
-  avatar: string
-  score: number
-}
-
 interface AssignRequestModalProps {
   isOpen: boolean
   onClose: () => void
   requestId: string
   serviceType: string
+  location?: string
+  onAssignSuccess?: () => void
 }
 
-export function AssignRequestModal({ isOpen, onClose, requestId, serviceType }: AssignRequestModalProps) {
+export function AssignRequestModal({ 
+  isOpen, 
+  onClose, 
+  requestId, 
+  serviceType, 
+  location,
+  onAssignSuccess 
+}: AssignRequestModalProps) {
   const { addNotification } = useNotificationStore()
   const [providers, setProviders] = useState<Provider[]>([])
   const [filteredProviders, setFilteredProviders] = useState<Provider[]>([])
-  const [selectedProvider, setSelectedProvider] = useState<string | null>(null)
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [loading, setLoading] = useState(false)
+  const [assigning, setAssigning] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
       fetchProviders()
+      setSelectedProvider(null)
+      setSearchTerm("")
     }
-  }, [isOpen, serviceType])
+  }, [isOpen, serviceType, location]) // Added location to dependencies
 
   useEffect(() => {
     const filtered = providers.filter(
       (provider) =>
         provider.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        provider.specialty.toLowerCase().includes(searchTerm.toLowerCase()),
+        provider.services.some(service => 
+          service.toLowerCase().includes(searchTerm.toLowerCase())
+        ) ||
+        provider.coverageAreas.some(area => 
+          area.toLowerCase().includes(searchTerm.toLowerCase())
+        )
     )
     setFilteredProviders(filtered)
   }, [providers, searchTerm])
@@ -282,88 +389,40 @@ export function AssignRequestModal({ isOpen, onClose, requestId, serviceType }: 
   const fetchProviders = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/providers/available?service=${serviceType}`)
-      if (response.ok) {
-        const data = await response.json()
-        setProviders(data)
-        setFilteredProviders(data)
-      }
-    } catch (error) {
-      console.error("Error fetching providers:", error)
-      // Mock data for demo
-      const mockProviders: Provider[] = [
-        {
-          id: "1",
-          name: "Jean Dupont",
-          specialty: "Plomberie",
-          rating: 4.8,
-          completedJobs: 156,
-          distance: "2.3 km",
-          responseTime: "15 min",
-          avatar: "JD",
-          score: 95,
-        },
-        {
-          id: "2",
-          name: "Marie Martin",
-          specialty: "Électricité",
-          rating: 4.9,
-          completedJobs: 203,
-          distance: "1.8 km",
-          responseTime: "12 min",
-          avatar: "MM",
-          score: 98,
-        },
-        {
-          id: "3",
-          name: "Pierre Durand",
-          specialty: "Plomberie",
-          rating: 4.6,
-          completedJobs: 89,
-          distance: "3.1 km",
-          responseTime: "20 min",
-          avatar: "PD",
-          score: 87,
-        },
-      ]
-      setProviders(mockProviders)
-      setFilteredProviders(mockProviders)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleAssign = async () => {
-    if (!selectedProvider) return
-
-    setLoading(true)
-    try {
-      const response = await fetch(`/api/requests/${requestId}/assign`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          providerId: selectedProvider,
-        }),
+      // Get available providers for this service type
+      const availableProviders = await providersService.getAvailableProviders({
+        serviceType: serviceType,
+        location: location,
+        limit: 20,
       })
 
-      if (response.ok) {
-        addNotification({
-          id: Date.now().toString(),
-          message: `Demande #${requestId} assignée avec succès`,
-          type: "success",
-          timestamp: new Date(),
-          read: false,
-        })
-        onClose()
-      } else {
-        throw new Error("Failed to assign request")
-      }
+      // Also get general providers that match the service type
+      const allProvidersResponse = await providersService.getProviders({
+        search: serviceType,
+        status: "active",
+        limit: 50
+      })
+
+      // Combine and deduplicate
+      const combined = [...availableProviders, ...allProvidersResponse.providers]
+      const uniqueProviders = combined.filter((provider, index, self) => 
+        index === self.findIndex(p => p.id === provider.id)
+      )
+
+      // Filter providers that offer the required service
+      const relevantProviders = uniqueProviders.filter(provider =>
+        provider.services.some(service => 
+          service.toLowerCase().includes(serviceType.toLowerCase())
+        )
+      )
+
+      setProviders(relevantProviders)
+      setFilteredProviders(relevantProviders)
     } catch (error) {
+      console.error("Error fetching providers:", error)
       addNotification({
         id: Date.now().toString(),
-        message: "Erreur lors de l'assignation",
+        message: "Erreur lors du chargement des prestataires",
         type: "error",
         timestamp: new Date(),
         read: false,
@@ -373,11 +432,76 @@ export function AssignRequestModal({ isOpen, onClose, requestId, serviceType }: 
     }
   }
 
+  const handleAssign = async () => {
+    if (!selectedProvider) return
+
+    setAssigning(true)
+    try {
+      await RequestsService.assignRequest(requestId, {
+        providerId: selectedProvider.id,
+        notes: `Assigné à ${selectedProvider.name} pour ${serviceType}`,
+      })
+
+      addNotification({
+        id: Date.now().toString(),
+        message: `Demande #${requestId} assignée à ${selectedProvider.name}`,
+        type: "success",
+        timestamp: new Date(),
+        read: false,
+      })
+
+      onAssignSuccess?.()
+      onClose()
+    } catch (error) {
+      console.error("Error assigning request:", error)
+      addNotification({
+        id: Date.now().toString(),
+        message: "Erreur lors de l'assignation",
+        type: "error",
+        timestamp: new Date(),
+        read: false,
+      })
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  const getProviderAvatar = (name: string) => {
+    return name
+      .split(" ")
+      .map(n => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+  }
+
+  const getAvailabilityText = (availability: string) => {
+    switch (availability) {
+      case "available":
+        return "Disponible"
+      case "busy":
+        return "Occupé"
+      case "offline":
+        return "Hors ligne"
+      default:
+        return "Inconnu"
+    }
+  }
+
+  const isProviderAvailable = (availability: string) => {
+    return availability === "available"
+  }
+
   if (!isOpen) return null
 
   return (
     <AnimatePresence>
-      <ModalOverlay initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <ModalOverlay 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        exit={{ opacity: 0 }} 
+        onClick={onClose}
+      >
         <ModalContent
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -385,7 +509,10 @@ export function AssignRequestModal({ isOpen, onClose, requestId, serviceType }: 
           onClick={(e) => e.stopPropagation()}
         >
           <ModalHeader>
-            <ModalTitle>Assigner un prestataire</ModalTitle>
+            <div>
+              <ModalTitle>Assigner un prestataire</ModalTitle>
+              <ServiceTypeIndicator>{serviceType}</ServiceTypeIndicator>
+            </div>
             <CloseButton onClick={onClose}>
               <X size={20} />
             </CloseButton>
@@ -398,60 +525,113 @@ export function AssignRequestModal({ isOpen, onClose, requestId, serviceType }: 
               </SearchIcon>
               <SearchInput
                 type="text"
-                placeholder="Rechercher un prestataire..."
+                placeholder="Rechercher par nom, service ou zone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </SearchContainer>
 
             {loading ? (
-              <div>Chargement des prestataires...</div>
+              <LoadingState>
+                <div>Chargement des prestataires disponibles...</div>
+              </LoadingState>
+            ) : filteredProviders.length === 0 ? (
+              <EmptyState>
+                <div>Aucun prestataire trouvé pour "{serviceType}"</div>
+                <div style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                  Essayez de modifier votre recherche ou contactez l'administrateur
+                </div>
+              </EmptyState>
             ) : (
               <ProvidersList>
-                {filteredProviders.map((provider) => (
-                  <ProviderCard
-                    key={provider.id}
-                    selected={selectedProvider === provider.id}
-                    onClick={() => setSelectedProvider(provider.id)}
-                  >
+                {filteredProviders.map((provider) => {
+                  const isSelected = selectedProvider?.id === provider.id
+                  
+                  return (
+                    <ProviderCard
+                      key={provider.id}
+                      selected={isSelected}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setSelectedProvider(provider)
+                      }}
+                    >
                     <ProviderHeader>
                       <ProviderInfo>
-                        <ProviderAvatar>{provider.avatar}</ProviderAvatar>
+                        <ProviderAvatar>
+                          {getProviderAvatar(provider.name)}
+                        </ProviderAvatar>
                         <ProviderDetails>
                           <ProviderName>{provider.name}</ProviderName>
-                          <ProviderSpecialty>{provider.specialty}</ProviderSpecialty>
+                          <ProviderSpecialty>
+                            {provider.services.slice(0, 2).join(", ")}
+                            {provider.services.length > 2 && ` (+${provider.services.length - 2})`}
+                          </ProviderSpecialty>
+                          <ProviderZone>
+                            <MapPin size={12} />
+                            {provider.coverageAreas.slice(0, 2).join(", ")}
+                            {provider.coverageAreas.length > 2 && "..."}
+                          </ProviderZone>
                         </ProviderDetails>
                       </ProviderInfo>
-                      <ProviderScore>
-                        <Star size={16} />
-                        {provider.score}%
-                      </ProviderScore>
+                      <ProviderBadges>
+                        <ProviderScore>
+                          <Star size={16} />
+                          {provider.rating || 0}
+                        </ProviderScore>
+                        <AvailabilityBadge available={isProviderAvailable(provider.availability)}>
+                          {getAvailabilityText(provider.availability)}
+                        </AvailabilityBadge>
+                      </ProviderBadges>
                     </ProviderHeader>
 
                     <ProviderStats>
                       <StatItem>
-                        <StatValue>{provider.rating}</StatValue>
-                        <StatLabel>Note</StatLabel>
-                      </StatItem>
-                      <StatItem>
-                        <StatValue>{provider.completedJobs}</StatValue>
+                        <StatValue>{provider.completedJobs || 0}</StatValue>
                         <StatLabel>Missions</StatLabel>
                       </StatItem>
                       <StatItem>
-                        <StatValue>{provider.distance}</StatValue>
-                        <StatLabel>Distance</StatLabel>
+                        <StatValue>{provider.successRate || 0}%</StatValue>
+                        <StatLabel>Succès</StatLabel>
+                      </StatItem>
+                      <StatItem>
+                        <StatValue>{provider.responseTime || 0}h</StatValue>
+                        <StatLabel>Réponse</StatLabel>
+                      </StatItem>
+                      <StatItem>
+                        <StatValue>{provider.hourlyRate || 0}</StatValue>
+                        <StatLabel>FCFA/h</StatLabel>
                       </StatItem>
                     </ProviderStats>
-                  </ProviderCard>
-                ))}
+
+                    <ProviderMeta>
+                      <MetaItem>
+                        <User size={14} />
+                        {provider.experience || 0} ans d'expérience
+                      </MetaItem>
+                      <MetaItem>
+                        <Clock size={14} />
+                        Dernière activité: {provider.lastActivity || "Inconnue"}
+                      </MetaItem>
+                    </ProviderMeta>
+                                      </ProviderCard>
+                  )
+                })}
               </ProvidersList>
             )}
           </ModalBody>
 
           <ModalFooter>
-            <Button onClick={onClose}>Annuler</Button>
-            <Button variant="primary" onClick={handleAssign} disabled={!selectedProvider || loading}>
-              {loading ? "Assignation..." : "Assigner"}
+            <Button onClick={onClose} disabled={assigning}>
+              Annuler
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={handleAssign} 
+              // disabled={!selectedProvider || assigning || (selectedProvider && !isProviderAvailable(selectedProvider.availability))}
+            >
+              {assigning ? "Assignation..." : selectedProvider ? `Assigner à ${selectedProvider.name}` : "Sélectionner un prestataire"}
             </Button>
           </ModalFooter>
         </ModalContent>

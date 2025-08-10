@@ -399,7 +399,7 @@ export function ViewProviderModal({ isOpen, onClose, providerId }: ViewProviderM
   const { data: providers } = useProvidersData()
   const { addNotification } = useNotificationStore()
 
-  const provider = providers?.find((p) => p.id === providerId)
+  const provider = providers?.data?.find((p) => p.id === providerId)
 
   if (!provider) {
     return null

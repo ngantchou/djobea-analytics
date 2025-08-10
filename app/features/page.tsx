@@ -36,6 +36,10 @@ import {
   Activity,
   ExternalLink,
   ArrowRight,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  XCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -43,7 +47,7 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useNotificationStore } from "@/store/use-notification-store"
-import { useTheme } from "@/components/theme-provider"
+import { useTheme } from "next-themes"
 
 interface Feature {
   id: string
@@ -59,7 +63,7 @@ interface Feature {
 
 export default function FeaturesPage() {
   const { addNotification } = useNotificationStore()
-  const { isDark, toggleTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
 
   const [features, setFeatures] = useState<Feature[]>([
     // Dashboard & Interface
@@ -78,10 +82,10 @@ export default function FeaturesPage() {
       id: "dark-mode",
       title: "Mode Sombre/Clair",
       description: "Basculez entre les thèmes sombre et clair pour votre confort",
-      icon: isDark ? Sun : Moon,
+      icon: theme === "dark" ? Sun : Moon,
       status: "active",
       category: "interface",
-      enabled: isDark,
+      enabled: theme === "dark",
       link: "/settings/general",
       linkText: "Paramètres Thème",
     },
@@ -399,15 +403,30 @@ export default function FeaturesPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
-        return "bg-green-500"
+        return "bg-green-500 hover:bg-green-600"
       case "beta":
-        return "bg-yellow-500"
+        return "bg-yellow-500 hover:bg-yellow-600"
       case "coming-soon":
-        return "bg-blue-500"
+        return "bg-blue-500 hover:bg-blue-600"
       case "disabled":
-        return "bg-gray-500"
+        return "bg-gray-500 hover:bg-gray-600"
       default:
-        return "bg-gray-500"
+        return "bg-gray-500 hover:bg-gray-600"
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "active":
+        return CheckCircle
+      case "beta":
+        return AlertCircle
+      case "coming-soon":
+        return Clock
+      case "disabled":
+        return XCircle
+      default:
+        return XCircle
     }
   }
 
@@ -440,7 +459,7 @@ export default function FeaturesPage() {
   }
 
   const handleThemeToggle = () => {
-    toggleTheme()
+    setTheme(theme === "dark" ? "light" : "dark")
     toggleFeature("dark-mode")
   }
 
@@ -453,7 +472,7 @@ export default function FeaturesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -463,59 +482,55 @@ export default function FeaturesPage() {
         >
           {/* Header */}
           <div className="text-center">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
-              Autres Fonctionnalités
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+              Fonctionnalités Avancées
             </h1>
-            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               Découvrez et activez les fonctionnalités avancées pour optimiser votre expérience Djobea Analytics
             </p>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <Card className="bg-gray-800/50 border-gray-700">
+            <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-white">{stats.total}</div>
-                <div className="text-sm text-gray-400">Total</div>
+                <div className="text-2xl font-bold">{stats.total}</div>
+                <div className="text-sm text-muted-foreground">Total</div>
               </CardContent>
             </Card>
-            <Card className="bg-gray-800/50 border-gray-700">
+            <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-green-400">{stats.active}</div>
-                <div className="text-sm text-gray-400">Actives</div>
+                <div className="text-2xl font-bold text-green-600">{stats.active}</div>
+                <div className="text-sm text-muted-foreground">Actives</div>
               </CardContent>
             </Card>
-            <Card className="bg-gray-800/50 border-gray-700">
+            <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-yellow-400">{stats.beta}</div>
-                <div className="text-sm text-gray-400">Bêta</div>
+                <div className="text-2xl font-bold text-yellow-600">{stats.beta}</div>
+                <div className="text-sm text-muted-foreground">Bêta</div>
               </CardContent>
             </Card>
-            <Card className="bg-gray-800/50 border-gray-700">
+            <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-blue-400">{stats.comingSoon}</div>
-                <div className="text-sm text-gray-400">Bientôt</div>
+                <div className="text-2xl font-bold text-blue-600">{stats.comingSoon}</div>
+                <div className="text-sm text-muted-foreground">Bientôt</div>
               </CardContent>
             </Card>
-            <Card className="bg-gray-800/50 border-gray-700">
+            <Card>
               <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-purple-400">{stats.enabled}</div>
-                <div className="text-sm text-gray-400">Activées</div>
+                <div className="text-2xl font-bold text-purple-600">{stats.enabled}</div>
+                <div className="text-sm text-muted-foreground">Activées</div>
               </CardContent>
             </Card>
           </div>
 
           {/* Categories */}
           <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-            <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10 bg-gray-800/50">
+            <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
               {categories.map((category) => {
                 const Icon = category.icon
                 return (
-                  <TabsTrigger
-                    key={category.id}
-                    value={category.id}
-                    className="flex items-center gap-2 data-[state=active]:bg-blue-600"
-                  >
+                  <TabsTrigger key={category.id} value={category.id} className="flex items-center gap-2">
                     <Icon className="w-4 h-4" />
                     <span className="hidden sm:block">{category.name}</span>
                   </TabsTrigger>
@@ -527,6 +542,7 @@ export default function FeaturesPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredFeatures.map((feature, index) => {
                   const Icon = feature.icon
+                  const StatusIcon = getStatusIcon(feature.status)
                   return (
                     <motion.div
                       key={feature.id}
@@ -534,7 +550,7 @@ export default function FeaturesPage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
                     >
-                      <Card className="bg-gray-800/50 border-gray-700 hover:bg-gray-800/70 transition-all duration-200 h-full">
+                      <Card className="hover:shadow-lg transition-all duration-200 h-full">
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-3">
@@ -542,9 +558,10 @@ export default function FeaturesPage() {
                                 <Icon className="w-5 h-5 text-white" />
                               </div>
                               <div>
-                                <CardTitle className="text-white text-lg">{feature.title}</CardTitle>
+                                <CardTitle className="text-lg">{feature.title}</CardTitle>
                                 <div className="flex items-center gap-2 mt-1">
                                   <Badge className={`${getStatusColor(feature.status)} text-white text-xs`}>
+                                    <StatusIcon className="w-3 h-3 mr-1" />
                                     {getStatusText(feature.status)}
                                   </Badge>
                                 </div>
@@ -565,17 +582,13 @@ export default function FeaturesPage() {
                           </div>
                         </CardHeader>
                         <CardContent>
-                          <CardDescription className="text-gray-400 mb-4">{feature.description}</CardDescription>
+                          <CardDescription className="mb-4">{feature.description}</CardDescription>
 
                           <div className="flex flex-col gap-2">
                             {/* Lien vers la page de la fonctionnalité */}
                             {feature.link && (
                               <Link href={feature.link}>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="w-full border-blue-600 text-blue-400 hover:text-blue-300 hover:bg-blue-600/10 bg-transparent"
-                                >
+                                <Button size="sm" variant="outline" className="w-full bg-transparent">
                                   <ExternalLink className="w-4 h-4 mr-2" />
                                   {feature.linkText || "Ouvrir"}
                                 </Button>
@@ -587,7 +600,7 @@ export default function FeaturesPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="w-full border-gray-600 text-gray-300 hover:text-white bg-transparent"
+                                className="w-full bg-transparent"
                                 onClick={() =>
                                   addNotification({
                                     title: "Fonctionnalité en développement",
@@ -605,7 +618,7 @@ export default function FeaturesPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="w-full border-yellow-600 text-yellow-400 hover:text-yellow-300 bg-transparent"
+                                className="w-full bg-transparent"
                                 onClick={() => toggleFeature(feature.id)}
                               >
                                 <Zap className="w-4 h-4 mr-2" />
@@ -623,9 +636,9 @@ export default function FeaturesPage() {
           </Tabs>
 
           {/* Quick Actions */}
-          <Card className="bg-gray-800/50 border-gray-700">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2">
                 <Zap className="w-5 h-5" />
                 Actions Rapides
               </CardTitle>
@@ -634,7 +647,6 @@ export default function FeaturesPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Button
                   variant="outline"
-                  className="border-gray-600 text-gray-300 hover:text-white bg-transparent"
                   onClick={() => {
                     const activeFeatures = features.filter((f) => f.status === "active")
                     activeFeatures.forEach((f) => {
@@ -651,7 +663,6 @@ export default function FeaturesPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="border-gray-600 text-gray-300 hover:text-white bg-transparent"
                   onClick={() => {
                     const betaFeatures = features.filter((f) => f.status === "beta")
                     betaFeatures.forEach((f) => toggleFeature(f.id))
@@ -666,7 +677,6 @@ export default function FeaturesPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="border-gray-600 text-gray-300 hover:text-white bg-transparent"
                   onClick={() => {
                     features.forEach((f) => {
                       if (f.enabled) toggleFeature(f.id)
@@ -682,7 +692,6 @@ export default function FeaturesPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="border-gray-600 text-gray-300 hover:text-white bg-transparent"
                   onClick={() => {
                     addNotification({
                       title: "Configuration sauvegardée",
@@ -698,9 +707,9 @@ export default function FeaturesPage() {
           </Card>
 
           {/* Navigation vers pages spécifiques */}
-          <Card className="bg-gray-800/50 border-gray-700">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2">
                 <ArrowRight className="w-5 h-5" />
                 Accès Rapide aux Fonctionnalités
               </CardTitle>
@@ -708,60 +717,42 @@ export default function FeaturesPage() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Link href="/ai">
-                  <Button
-                    variant="outline"
-                    className="w-full border-blue-600 text-blue-400 hover:text-blue-300 hover:bg-blue-600/10 bg-transparent justify-start"
-                  >
+                  <Button variant="outline" className="w-full justify-start bg-transparent">
                     <Bot className="w-4 h-4 mr-2" />
                     Prédictions IA
                     <ExternalLink className="w-4 h-4 ml-auto" />
                   </Button>
                 </Link>
                 <Link href="/analytics">
-                  <Button
-                    variant="outline"
-                    className="w-full border-purple-600 text-purple-400 hover:text-purple-300 hover:bg-purple-600/10 bg-transparent justify-start"
-                  >
+                  <Button variant="outline" className="w-full justify-start bg-transparent">
                     <BarChart3 className="w-4 h-4 mr-2" />
                     Analytics Avancés
                     <ExternalLink className="w-4 h-4 ml-auto" />
                   </Button>
                 </Link>
                 <Link href="/providers">
-                  <Button
-                    variant="outline"
-                    className="w-full border-green-600 text-green-400 hover:text-green-300 hover:bg-green-600/10 bg-transparent justify-start"
-                  >
+                  <Button variant="outline" className="w-full justify-start bg-transparent">
                     <Search className="w-4 h-4 mr-2" />
                     Recherche Globale
                     <ExternalLink className="w-4 h-4 ml-auto" />
                   </Button>
                 </Link>
                 <Link href="/settings/whatsapp">
-                  <Button
-                    variant="outline"
-                    className="w-full border-yellow-600 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-600/10 bg-transparent justify-start"
-                  >
+                  <Button variant="outline" className="w-full justify-start bg-transparent">
                     <MessageSquare className="w-4 h-4 mr-2" />
                     WhatsApp Business
                     <ExternalLink className="w-4 h-4 ml-auto" />
                   </Button>
                 </Link>
                 <Link href="/settings/security">
-                  <Button
-                    variant="outline"
-                    className="w-full border-red-600 text-red-400 hover:text-red-300 hover:bg-red-600/10 bg-transparent justify-start"
-                  >
+                  <Button variant="outline" className="w-full justify-start bg-transparent">
                     <Shield className="w-4 h-4 mr-2" />
                     Sécurité & 2FA
                     <ExternalLink className="w-4 h-4 ml-auto" />
                   </Button>
                 </Link>
                 <Link href="/settings/performance">
-                  <Button
-                    variant="outline"
-                    className="w-full border-orange-600 text-orange-400 hover:text-orange-300 hover:bg-orange-600/10 bg-transparent justify-start"
-                  >
+                  <Button variant="outline" className="w-full justify-start bg-transparent">
                     <Activity className="w-4 h-4 mr-2" />
                     Monitoring Système
                     <ExternalLink className="w-4 h-4 ml-auto" />

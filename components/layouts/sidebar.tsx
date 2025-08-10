@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -28,6 +28,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useAuth } from "@/components/auth-provider"
+import { apiClient } from "@/lib/api-client"
+import { logger } from "@/lib/logger"
 
 interface MenuItem {
   title: string
@@ -37,6 +39,28 @@ interface MenuItem {
   children?: MenuItem[]
   permission?: string
   roles?: string[]
+}
+
+interface NavigationCounts {
+  requests: {
+    total: number
+    pending: number
+    assigned: number
+    completed: number
+  }
+  providers: {
+    total: number
+    active: number
+    inactive: number
+    pending: number
+  }
+  messages: {
+    unread: number
+    total: number
+  }
+  notifications: {
+    unread: number
+  }
 }
 
 const menuItems: MenuItem[] = [
@@ -49,7 +73,7 @@ const menuItems: MenuItem[] = [
     title: "Demandes",
     href: "/requests",
     icon: FileText,
-    badge: "12",
+    badgeKey: "requests.total",
   },
   {
     title: "Prestataires",
@@ -70,7 +94,7 @@ const menuItems: MenuItem[] = [
     title: "Messages",
     href: "/messages",
     icon: MessageSquare,
-    badge: "3",
+    badgeKey: "messages.unread",
   },
   {
     title: "Carte",
@@ -161,6 +185,55 @@ export function Sidebar() {
   const pathname = usePathname()
   const { user } = useAuth()
   const [openItems, setOpenItems] = useState<string[]>(["Paramètres"])
+  const [counts, setCounts] = useState<NavigationCounts | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        setLoading(true)
+        const response = await apiClient.request('/api/navigation/counts', {
+          method: 'GET',
+          requireAuth: false
+        })
+        
+        if (response.success && response.data) {
+          setCounts(response.data)
+        }
+      } catch (err) {
+        logger.error('Error fetching navigation counts:', err)
+        // Set fallback counts
+        setCounts({
+          requests: { total: 0, pending: 0, assigned: 0, completed: 0 },
+          providers: { total: 0, active: 0, inactive: 0, pending: 0 },
+          messages: { unread: 0, total: 0 },
+          notifications: { unread: 0 }
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCounts()
+    
+    // Refresh counts every 30 seconds
+    const interval = setInterval(fetchCounts, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const getBadgeValue = (badgeKey: string): string | undefined => {
+    if (!counts || !badgeKey) return undefined
+    
+    const keys = badgeKey.split('.')
+    let value: any = counts
+    
+    for (const key of keys) {
+      value = value?.[key]
+      if (value === undefined) return undefined
+    }
+    
+    return value > 0 ? value.toString() : undefined
+  }
 
   const toggleItem = (title: string) => {
     setOpenItems((prev) => (prev.includes(title) ? prev.filter((item) => item !== title) : [...prev, title]))
@@ -202,9 +275,9 @@ export function Sidebar() {
             >
               <item.icon className="h-4 w-4" />
               <span className="flex-1 text-left">{item.title}</span>
-              {item.badge && (
+              {getBadgeValue((item as any).badgeKey) && (
                 <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-                  {item.badge}
+                  {getBadgeValue((item as any).badgeKey)}
                 </Badge>
               )}
               {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -231,9 +304,9 @@ export function Sidebar() {
         <Link href={item.href!}>
           <item.icon className="h-4 w-4" />
           <span className="flex-1 text-left">{item.title}</span>
-          {item.badge && (
+          {getBadgeValue((item as any).badgeKey) && (
             <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-              {item.badge}
+              {getBadgeValue((item as any).badgeKey)}
             </Badge>
           )}
         </Link>

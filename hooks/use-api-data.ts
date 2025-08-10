@@ -125,3 +125,65 @@ export function useUpdateRequestStatus() {
     invalidateQueries: [["requests"]],
   })
 }
+
+export function useCreateProvider() {
+  return useApiMutation((data: any) => apiClient.createProvider(data), {
+    onSuccess: () => toast.success("Prestataire créé avec succès"),
+    invalidateQueries: [["providers"]],
+  })
+}
+
+export function useUpdateProvider() {
+  return useApiMutation(({ id, data }: { id: string; data: any }) => apiClient.updateProvider(id, data), {
+    onSuccess: () => toast.success("Prestataire mis à jour avec succès"),
+    invalidateQueries: [["providers"]],
+  })
+}
+
+export function useDeleteProvider() {
+  return useApiMutation((id: string) => apiClient.deleteProvider(id), {
+    onSuccess: () => toast.success("Prestataire supprimé avec succès"),
+    invalidateQueries: [["providers"]],
+  })
+}
+
+export function useCreateRequest() {
+  return useApiMutation((data: any) => apiClient.createRequest(data), {
+    onSuccess: () => toast.success("Demande créée avec succès"),
+    invalidateQueries: [["requests"]],
+  })
+}
+
+export function useUpdateRequest() {
+  return useApiMutation(({ id, data }: { id: string; data: any }) => apiClient.updateRequest(id, data), {
+    onSuccess: () => toast.success("Demande mise à jour avec succès"),
+    invalidateQueries: [["requests"]],
+  })
+}
+
+export function useCancelRequest() {
+  return useApiMutation(({ id, reason }: { id: string; reason: string }) => apiClient.cancelRequest(id, reason), {
+    onSuccess: () => toast.success("Demande annulée avec succès"),
+    invalidateQueries: [["requests"]],
+  })
+}
+
+export function useSendMessage() {
+  return useApiMutation((data: any) => apiClient.sendMessage(data), {
+    onSuccess: () => toast.success("Message envoyé avec succès"),
+    invalidateQueries: [["messages"]],
+  })
+}
+
+export function useMarkNotificationAsRead() {
+  return useApiMutation((id: string) => apiClient.markNotificationAsRead(id), {
+    invalidateQueries: [["notifications"]],
+  })
+}
+
+export function useMarkAllNotificationsAsRead() {
+  return useApiMutation(() => apiClient.markAllNotificationsAsRead(), {
+    onSuccess: () => toast.success("Toutes les notifications marquées comme lues"),
+    invalidateQueries: [["notifications"]],
+  })
+}

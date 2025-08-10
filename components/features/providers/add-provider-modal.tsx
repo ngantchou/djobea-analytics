@@ -7,6 +7,7 @@ import { X, User, Phone, Mail, MapPin, Briefcase, DollarSign, Calendar } from "l
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useNotificationStore } from "@/store/use-notification-store"
+import { providersService } from "@/lib/services/providers-service"
 
 const ModalOverlay = styled(motion.div)`
   position: fixed;
@@ -205,44 +206,32 @@ export function AddProviderModal({ isOpen, onClose }: AddProviderModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     try {
-      const response = await fetch("/api/providers", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
+      await providersService.createProvider(formData)
+      addNotification({
+        id: Date.now().toString(),
+        type: "success",
+        title: "Prestataire ajouté",
+        message: `${formData.name} a été ajouté avec succès`,
+        timestamp: new Date(),
+        read: false,
       })
 
-      if (response.ok) {
-        const newProvider = await response.json()
-        addNotification({
-          id: Date.now().toString(),
-          type: "success",
-          title: "Prestataire ajouté",
-          message: `${formData.name} a été ajouté avec succès`,
-          timestamp: new Date(),
-          read: false,
-        })
+      // Reset form
+      setFormData({
+        name: "",
+        phone: "",
+        whatsapp: "",
+        email: "",
+        services: "",
+        coverage: "",
+        rate: "",
+        experience: "",
+        description: "",
+      })
 
-        // Reset form
-        setFormData({
-          name: "",
-          phone: "",
-          whatsapp: "",
-          email: "",
-          services: "",
-          coverage: "",
-          rate: "",
-          experience: "",
-          description: "",
-        })
-
-        onClose()
-      } else {
-        throw new Error("Erreur lors de l'ajout")
-      }
+      onClose()
+        
     } catch (error) {
       addNotification({
         id: Date.now().toString(),

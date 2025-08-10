@@ -1,0 +1,237 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Djobea Dashboard API",
+    "version": "1.0.0",
+    "description": "API for dashboard data and statistics"
+  },
+  "servers": [
+    {
+      "url": "http://djobea.ai/api",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/dashboard": {
+      "get": {
+        "summary": "Get dashboard data",
+        "tags": ["Dashboard"],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["24h", "7d", "30d", "90d", "1y"],
+              "default": "7d"
+            },
+            "description": "Time period for data aggregation"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dashboard data retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "stats": {
+                          "type": "object",
+                          "properties": {
+                            "totalRequests": {
+                              "type": "integer"
+                            },
+                            "successRate": {
+                              "type": "number"
+                            },
+                            "pendingRequests": {
+                              "type": "integer"
+                            },
+                            "activeProviders": {
+                              "type": "integer"
+                            },
+                            "completedToday": {
+                              "type": "integer"
+                            },
+                            "revenue": {
+                              "type": "number"
+                            },
+                            "avgResponseTime": {
+                              "type": "number"
+                            },
+                            "customerSatisfaction": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "charts": {
+                          "type": "object",
+                          "properties": {
+                            "activity": {
+                              "type": "object",
+                              "properties": {
+                                "labels": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "data": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "number"
+                                  }
+                                }
+                              }
+                            },
+                            "services": {
+                              "type": "object",
+                              "properties": {
+                                "labels": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "data": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "number"
+                                  }
+                                }
+                              }
+                            },
+                            "revenue": {
+                              "type": "object",
+                              "properties": {
+                                "labels": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "data": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "number"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "activity": {
+                          "type": "object",
+                          "properties": {
+                            "requests": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "client": {
+                                    "type": "string"
+                                  },
+                                  "service": {
+                                    "type": "string"
+                                  },
+                                  "location": {
+                                    "type": "string"
+                                  },
+                                  "time": {
+                                    "type": "string"
+                                  },
+                                  "status": {
+                                    "type": "string",
+                                    "enum": ["pending", "active", "completed", "cancelled"]
+                                  },
+                                  "avatar": {
+                                    "type": "string"
+                                  },
+                                  "priority": {
+                                    "type": "string",
+                                    "enum": ["low", "normal", "high", "urgent"]
+                                  }
+                                }
+                              }
+                            },
+                            "alerts": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "time": {
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": ["info", "warning", "error", "success"]
+                                  },
+                                  "status": {
+                                    "type": "string"
+                                  },
+                                  "severity": {
+                                    "type": "string",
+                                    "enum": ["low", "medium", "high"]
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

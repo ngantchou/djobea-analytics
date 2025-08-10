@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { apiRequest, API_PATHS } from "@/lib/api-config"
 
 interface Zone {
   id: string
@@ -74,13 +75,24 @@ interface SettingsState {
   hasChanges: boolean
 
   // Actions
+  loadSettings: () => Promise<void>
   updateGeneral: (settings: Partial<GeneralSettings>) => void
   updateAI: (settings: Partial<AISettings>) => void
   updateWhatsApp: (settings: Partial<WhatsAppSettings>) => void
-  saveSettings: () => Promise<void>
+  saveSettings: () => Promise<void>;
   resetSettings: () => void
   setLoading: (loading: boolean) => void
   setHasChanges: (hasChanges: boolean) => void
+  
+  // Zone management
+  addZone: (zone: { name: string; description?: string }) => Promise<void>;
+  updateZone: (zoneId: string, zone: { name: string; description?: string }) => Promise<void>;
+  deleteZone: (zoneId: string) => Promise<void>;
+  
+  // Service management
+  addService: (service: { name: string; description?: string; commission?: number }) => Promise<void>;
+  updateService: (serviceId: string, service: { name: string; description?: string; commission?: number; active?: boolean }) => Promise<void>;
+  deleteService: (serviceId: string) => Promise<void>;
 }
 
 const defaultGeneralSettings: GeneralSettings = {
@@ -234,24 +246,254 @@ export const useSettingsStore = create<SettingsState>()(
         }))
       },
 
+      loadSettings: async () => {
+        set({ isLoading: true })
+        
+        try {
+          const result = await apiRequest(API_PATHS.SETTINGS.GENERAL)
+          
+          if (result.success && result.data) {
+            set({
+              general: {
+                appName: result.data.appName || "Djobea AI",
+                slogan: result.data.slogan || "Services à domicile intelligents",
+                targetCity: result.data.targetCity || "douala",
+                timezone: result.data.timezone || "Africa/Douala",
+                defaultLanguage: result.data.defaultLanguage || "fr",
+                currency: result.data.currency || "XAF",
+                coverageRadius: result.data.coverageRadius || 15,
+                services: result.data.services || [],
+                zones: result.data.zones || [],
+                economicModel: result.data.economicModel || {
+                  defaultCommission: 15,
+                  minMissionAmount: 2500,
+                  maxMissionAmount: 50000,
+                  paymentDelay: 48,
+                  serviceCommissions: {}
+                }
+              }
+            })
+          } else {
+            console.error("Erreur chargement paramètres:", result.error)
+          }
+        } catch (error) {
+          console.error("Erreur chargement paramètres:", error)
+          // Keep default settings if API fails
+        } finally {
+          set({ isLoading: false })
+        }
+      },
+
       saveSettings: async () => {
-        const { general, ai, whatsapp } = get()
+        const { general } = get()
         set({ isLoading: true })
 
         try {
-          const response = await fetch("/api/settings/save", {
+          const result = await apiRequest(API_PATHS.SETTINGS.GENERAL, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ general, ai, whatsapp }),
+            body: JSON.stringify(general),
           })
 
-          if (!response.ok) {
-            throw new Error("Erreur lors de la sauvegarde")
+          if (result.success) {
+            set({ hasChanges: false })
+          } else {
+            throw new Error(result.error || "Erreur lors de la sauvegarde")
           }
-
-          set({ hasChanges: false })
         } catch (error) {
           console.error("Erreur sauvegarde:", error)
+          throw error
+        } finally {
+          set({ isLoading: false })
+        }
+      },
+      
+      addZone: async (zone: { name: string; description?: string }) => {
+        set({ isLoading: true })
+        
+        try {
+          const result = await apiRequest(API_PATHS.SETTINGS.ZONES, {
+            method: "POST",
+            body: JSON.stringify(zone),
+          })
+          
+          if (result.success && result.data) {
+            set((state) => ({
+              general: {
+                ...state.general,
+                zones: [...(state.general.zones || []), result.data]
+              },
+              hasChanges: true
+            }))
+          } else {
+            throw new Error(result.error || "Erreur lors de l'ajout de la zone")
+          }
+        } catch (error) {
+          console.error("Erreur ajout zone:", error)
+          throw error
+        } finally {
+          set({ isLoading: false })
+        }
+      },
+      
+      updateZone: async (zoneId: string, zone: { name: string; description?: string }) => {
+        set({ isLoading: true })
+        
+        try {
+          const result = await apiRequest(`${API_PATHS.SETTINGS.ZONES}/${zoneId}`, {
+            method: "PUT",
+            body: JSON.stringify(zone),
+          })
+          
+          if (result.success && result.data) {
+            set((state) => ({
+              general: {
+                ...state.general,
+                zones: (state.general.zones || []).map(z => 
+                  z.id === zoneId ? result.data : z
+                )
+              },
+              hasChanges: true
+            }))
+          } else {
+            throw new Error(result.error || "Erreur lors de la modification de la zone")
+          }
+        } catch (error) {
+          console.error("Erreur modification zone:", error)
+          throw error
+        } finally {
+          set({ isLoading: false })
+        }
+      },
+      
+      deleteZone: async (zoneId: string) => {
+        set({ isLoading: true })
+        
+        try {
+          const result = await apiRequest(`${API_PATHS.SETTINGS.ZONES}/${zoneId}`, {
+            method: "DELETE"
+          })
+          
+          if (result.success) {
+            set((state) => ({
+              general: {
+                ...state.general,
+                zones: (state.general.zones || []).filter(z => z.id !== zoneId)
+              },
+              hasChanges: true
+            }))
+          } else {
+            throw new Error(result.error || "Erreur lors de la suppression de la zone")
+          }
+        } catch (error) {
+          console.error("Erreur suppression zone:", error)
+          throw error
+        } finally {
+          set({ isLoading: false })
+        }
+      },
+      
+      addService: async (service: { name: string; description?: string; commission?: number }) => {
+        set({ isLoading: true })
+        
+        try {
+          const result = await apiRequest(API_PATHS.SETTINGS.SERVICES, {
+            method: "POST",
+            body: JSON.stringify(service),
+          })
+          
+          if (result.success && result.data) {
+            set((state) => ({
+              general: {
+                ...state.general,
+                services: [...(state.general.services || []), result.data],
+                economicModel: {
+                  ...state.general.economicModel,
+                  serviceCommissions: {
+                    ...state.general.economicModel.serviceCommissions,
+                    [result.data.id]: result.data.commission
+                  }
+                }
+              },
+              hasChanges: true
+            }))
+          } else {
+            throw new Error(result.error || "Erreur lors de l'ajout du service")
+          }
+        } catch (error) {
+          console.error("Erreur ajout service:", error)
+          throw error
+        } finally {
+          set({ isLoading: false })
+        }
+      },
+      
+      updateService: async (serviceId: string, service: { name: string; description?: string; commission?: number; active?: boolean }) => {
+        set({ isLoading: true })
+        
+        try {
+          const result = await apiRequest(`${API_PATHS.SETTINGS.SERVICES}/${serviceId}`, {
+            method: "PUT",
+            body: JSON.stringify(service),
+          })
+          
+          if (result.success && result.data) {
+            set((state) => ({
+              general: {
+                ...state.general,
+                services: (state.general.services || []).map(s => 
+                  s.id === serviceId ? result.data : s
+                ),
+                economicModel: {
+                  ...state.general.economicModel,
+                  serviceCommissions: {
+                    ...state.general.economicModel.serviceCommissions,
+                    [serviceId]: result.data.commission
+                  }
+                }
+              },
+              hasChanges: true
+            }))
+          } else {
+            throw new Error(result.error || "Erreur lors de la modification du service")
+          }
+        } catch (error) {
+          console.error("Erreur modification service:", error)
+          throw error
+        } finally {
+          set({ isLoading: false })
+        }
+      },
+      
+      deleteService: async (serviceId: string) => {
+        set({ isLoading: true })
+        
+        try {
+          const result = await apiRequest(`${API_PATHS.SETTINGS.SERVICES}/${serviceId}`, {
+            method: "DELETE"
+          })
+          
+          if (result.success) {
+            set((state) => {
+              const updatedCommissions = { ...state.general.economicModel.serviceCommissions }
+              delete updatedCommissions[serviceId]
+              
+              return {
+                general: {
+                  ...state.general,
+                  services: (state.general.services || []).filter(s => s.id !== serviceId),
+                  economicModel: {
+                    ...state.general.economicModel,
+                    serviceCommissions: updatedCommissions
+                  }
+                },
+                hasChanges: true
+              }
+            })
+          } else {
+            throw new Error(result.error || "Erreur lors de la suppression du service")
+          }
+        } catch (error) {
+          console.error("Erreur suppression service:", error)
           throw error
         } finally {
           set({ isLoading: false })

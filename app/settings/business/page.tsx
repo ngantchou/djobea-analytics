@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import styled from "styled-components"
+import { apiRequest, API_PATHS } from "@/lib/api-config"
 import {
   ChevronRight,
   Save,
@@ -722,34 +723,28 @@ interface ValidationErrors {
 }
 
 export default function BusinessSettingsPage() {
+  // État par défaut minimal - sera remplacé par les données de l'API
   const [settings, setSettings] = useState<BusinessSettings>({
-    // Services Domicile
-    fraisDeplacementBase: 500,
-    fraisDeplacementParKm: 100,
-    supplementUrgence: 25,
-    forfaitDiagnostic: 1500,
-    garantieTravaux: 30,
-
-    // Créneaux Horaires
-    dureeCreneauStandard: 2,
-    dureeCreneauUrgence: 1,
-    reservationMaxJours: 7,
-    annulationGratuiteHeures: 4,
-    heureOuverture: "08:00",
-    heureFermeture: "18:00",
-
-    // Facturation
-    tvaApplicable: 19.25,
-    numeroFacturePrefix: "DJB",
-    numeroFactureAnnee: 2025,
-    numeroFactureCompteur: 1,
-    archivageDureeAnnees: 5,
-    factureAutomatique: true,
-
-    // Zones de service
-    zonesPrincipales: ["Douala", "Yaoundé", "Bafoussam"],
-    rayonServiceKm: 40,
-    fraisDeplacementSeuil: 5,
+    fraisDeplacementBase: 0,
+    fraisDeplacementParKm: 0,
+    supplementUrgence: 0,
+    forfaitDiagnostic: 0,
+    garantieTravaux: 0,
+    dureeCreneauStandard: 0,
+    dureeCreneauUrgence: 0,
+    reservationMaxJours: 0,
+    annulationGratuiteHeures: 0,
+    heureOuverture: "00:00",
+    heureFermeture: "00:00",
+    tvaApplicable: 0,
+    numeroFacturePrefix: "",
+    numeroFactureAnnee: 0,
+    numeroFactureCompteur: 0,
+    archivageDureeAnnees: 0,
+    factureAutomatique: false,
+    zonesPrincipales: [],
+    rayonServiceKm: 0,
+    fraisDeplacementSeuil: 0,
   })
 
   const [originalSettings, setOriginalSettings] = useState<BusinessSettings>(settings)
@@ -773,15 +768,22 @@ export default function BusinessSettingsPage() {
   }, [settings, originalSettings])
 
   const loadSettings = async () => {
+    setIsLoading(true)
     try {
-      const response = await fetch("/api/settings/business")
-      if (response.ok) {
-        const data = await response.json()
-        setSettings(data.settings)
-        setOriginalSettings(data.settings)
+      const result = await apiRequest(API_PATHS.SETTINGS.BUSINESS)
+      
+      if (result.success && result.data?.settings) {
+        setSettings(result.data.settings)
+        setOriginalSettings(result.data.settings)
+      } else {
+        console.error("Erreur chargement:", result.error)
+        showNotification("Erreur lors du chargement des paramètres", "error")
       }
     } catch (error) {
       console.error("Erreur chargement:", error)
+      showNotification("Erreur de connexion à l'API", "error")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -853,21 +855,21 @@ export default function BusinessSettingsPage() {
     showNotification("Sauvegarde des paramètres métier...", "info")
 
     try {
-      const response = await fetch("/api/settings/business", {
+      const result = await apiRequest(API_PATHS.SETTINGS.BUSINESS, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
       })
 
-      if (response.ok) {
+      if (result.success) {
         setOriginalSettings(settings)
         setHasChanges(false)
         showNotification("Paramètres métier sauvegardés avec succès", "success")
       } else {
-        throw new Error("Erreur serveur")
+        throw new Error(result.error || "Erreur serveur")
       }
     } catch (error) {
-      showNotification("Erreur lors de la sauvegarde", "error")
+      console.error("Erreur sauvegarde:", error)
+      showNotification(`Erreur lors de la sauvegarde: ${error.message || error}`, "error")
     } finally {
       setIsLoading(false)
     }
@@ -885,102 +887,58 @@ export default function BusinessSettingsPage() {
     setShowTestModal(true)
     setTestResults([])
 
-    const tests = [
-      {
-        name: "Calcul frais de déplacement",
-        test: () => {
-          const distance = 15
-          const frais =
-            distance <= settings.fraisDeplacementSeuil
-              ? 0
-              : settings.fraisDeplacementBase +
-                (distance - settings.fraisDeplacementSeuil) * settings.fraisDeplacementParKm
-          return {
-            status: "success" as const,
-            message: `Distance ${distance}km = ${frais} XAF`,
-            details: `Base: ${settings.fraisDeplacementBase} + ${distance - settings.fraisDeplacementSeuil}km × ${settings.fraisDeplacementParKm}`,
-          }
-        },
-      },
-      {
-        name: "Validation créneaux horaires",
-        test: () => {
-          const heureDebut = Number.parseInt(settings.heureOuverture.split(":")[0])
-          const heureFin = Number.parseInt(settings.heureFermeture.split(":")[0])
-          const creneauxPossibles = Math.floor((heureFin - heureDebut) / settings.dureeCreneauStandard)
+    try {
+      const result = await apiRequest(API_PATHS.SETTINGS.BUSINESS_TEST, {
+        method: "POST",
+      })
 
-          return {
-            status: creneauxPossibles >= 4 ? ("success" as const) : ("warning" as const),
-            message: `${creneauxPossibles} créneaux disponibles par jour`,
-            details: `${settings.heureOuverture} - ${settings.heureFermeture} (${settings.dureeCreneauStandard}h/créneau)`,
-          }
-        },
-      },
-      {
-        name: "Génération numéro facture",
-        test: () => {
-          const numero = `${settings.numeroFacturePrefix}-${settings.numeroFactureAnnee}-${settings.numeroFactureCompteur.toString().padStart(4, "0")}`
-          return {
-            status: "success" as const,
-            message: `Prochaine facture: ${numero}`,
-            details: `Format: ${settings.numeroFacturePrefix}-YYYY-NNNN`,
-          }
-        },
-      },
-      {
-        name: "Vérification zones de service",
-        test: () => {
-          const zonesCount = settings.zonesPrincipales.length
-          return {
-            status: zonesCount >= 2 ? ("success" as const) : ("warning" as const),
-            message: `${zonesCount} zones configurées`,
-            details: `Zones: ${settings.zonesPrincipales.join(", ")}`,
-          }
-        },
-      },
-      {
-        name: "Calcul TVA",
-        test: () => {
-          const montantHT = 10000
-          const montantTVA = montantHT * (settings.tvaApplicable / 100)
-          const montantTTC = montantHT + montantTVA
-
-          return {
-            status: "success" as const,
-            message: `${montantHT} XAF HT = ${montantTTC} XAF TTC`,
-            details: `TVA ${settings.tvaApplicable}% = ${montantTVA} XAF`,
-          }
-        },
-      },
-    ]
-
-    for (let i = 0; i < tests.length; i++) {
-      setTimeout(
-        () => {
-          const result = tests[i].test()
-          setTestResults((prev) => [...prev, { name: tests[i].name, ...result }])
-
-          if (i === tests.length - 1) {
-            setIsLoading(false)
-            showNotification("Tests terminés avec succès", "success")
-          }
-        },
-        (i + 1) * 800,
-      )
+      if (result.success && result.data?.tests) {
+        // Simuler l'affichage progressif des résultats
+        result.data.tests.forEach((test: any, index: number) => {
+          setTimeout(() => {
+            setTestResults((prev) => [...prev, test])
+            
+            if (index === result.data.tests.length - 1) {
+              setIsLoading(false)
+              showNotification("Tests terminés avec succès", "success")
+            }
+          }, (index + 1) * 800)
+        })
+      } else {
+        setIsLoading(false)
+        showNotification("Erreur lors du test de configuration", "error")
+      }
+    } catch (error) {
+      setIsLoading(false)
+      console.error("Erreur test:", error)
+      showNotification("Erreur de connexion lors des tests", "error")
     }
   }
 
-  const handleExport = () => {
-    const dataStr = JSON.stringify(settings, null, 2)
-    const dataBlob = new Blob([dataStr], { type: "application/json" })
-    const url = URL.createObjectURL(dataBlob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `business-settings-${new Date().toISOString().split("T")[0]}.json`
-    link.click()
-    URL.revokeObjectURL(url)
-    setShowExportModal(false)
-    showNotification("Configuration exportée avec succès", "success")
+  const handleExport = async () => {
+    try {
+      const result = await apiRequest(API_PATHS.SETTINGS.BUSINESS_EXPORT, {
+        method: "POST",
+      })
+
+      if (result.success && result.data) {
+        const dataStr = JSON.stringify(result.data.settings, null, 2)
+        const dataBlob = new Blob([dataStr], { type: "application/json" })
+        const url = URL.createObjectURL(dataBlob)
+        const link = document.createElement("a")
+        link.href = url
+        link.download = result.data.filename || `business-settings-${new Date().toISOString().split("T")[0]}.json`
+        link.click()
+        URL.revokeObjectURL(url)
+        setShowExportModal(false)
+        showNotification("Configuration exportée avec succès", "success")
+      } else {
+        showNotification("Erreur lors de l'export", "error")
+      }
+    } catch (error) {
+      console.error("Erreur export:", error)
+      showNotification("Erreur lors de l'export", "error")
+    }
   }
 
   const handleImport = (jsonData: string) => {

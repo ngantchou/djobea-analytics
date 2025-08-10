@@ -36,6 +36,34 @@ export class ApiError extends Error implements AppError {
   }
 }
 
+export class AuthenticationError extends Error implements AppError {
+  code: string
+  status: number
+  timestamp: string
+
+  constructor(message = "Authentication required") {
+    super(message)
+    this.name = "AuthenticationError"
+    this.code = "AUTHENTICATION_ERROR"
+    this.status = 401
+    this.timestamp = new Date().toISOString()
+  }
+}
+
+export class AuthorizationError extends Error implements AppError {
+  code: string
+  status: number
+  timestamp: string
+
+  constructor(message = "Access denied") {
+    super(message)
+    this.name = "AuthorizationError"
+    this.code = "AUTHORIZATION_ERROR"
+    this.status = 403
+    this.timestamp = new Date().toISOString()
+  }
+}
+
 export class ValidationError extends Error implements AppError {
   code: string
   details: any
@@ -91,6 +119,15 @@ export function handleError(error: unknown): AppError {
       return new TimeoutError(error.message)
     }
 
+    // Check for authentication errors
+    if (error.message.includes("401") || error.message.includes("Unauthorized")) {
+      return new AuthenticationError(error.message)
+    }
+
+    if (error.message.includes("403") || error.message.includes("Forbidden")) {
+      return new AuthorizationError(error.message)
+    }
+
     // Generic error
     const appError = error as AppError
     appError.code = "UNKNOWN_ERROR"
@@ -107,6 +144,14 @@ export function handleError(error: unknown): AppError {
 }
 
 export function getErrorMessage(error: unknown): string {
+  if (error instanceof AuthenticationError) {
+    return "Vous devez vous connecter pour accéder à cette ressource"
+  }
+
+  if (error instanceof AuthorizationError) {
+    return "Vous n'avez pas les permissions nécessaires pour cette action"
+  }
+
   if (error instanceof Error) {
     return error.message
   }
@@ -131,7 +176,20 @@ export function isRetryableError(error: unknown): boolean {
     return true
   }
 
+  // Don't retry authentication errors
+  if (error instanceof AuthenticationError || error instanceof AuthorizationError) {
+    return false
+  }
+
   return false
+}
+
+export function isAuthError(error: unknown): boolean {
+  return error instanceof AuthenticationError || error instanceof AuthorizationError
+}
+
+export function shouldRedirectToLogin(error: unknown): boolean {
+  return error instanceof AuthenticationError
 }
 
 // Error reporting utility
@@ -153,4 +211,21 @@ export function reportError(error: AppError, context?: any) {
   if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
     // Example: Sentry.captureException(error, { extra: context })
   }
+}
+
+// Handle API response errors
+export function handleApiResponse(response: Response): Promise<any> {
+  if (response.status === 401) {
+    throw new AuthenticationError("Session expirée, veuillez vous reconnecter")
+  }
+
+  if (response.status === 403) {
+    throw new AuthorizationError("Accès refusé")
+  }
+
+  if (!response.ok) {
+    throw new ApiError(`Erreur ${response.status}: ${response.statusText}`, response.status)
+  }
+
+  return response.json()
 }

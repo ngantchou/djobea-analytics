@@ -45,6 +45,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import EmojiPicker from "emoji-picker-react"
+import { apiClient } from "@/lib/api-client"
 
 // Types
 interface Contact {
@@ -65,6 +66,8 @@ interface Contact {
     lng: number
     address: string
   }
+  is_escalated?: boolean
+  metadata?: any
 }
 
 interface Message {
@@ -266,12 +269,12 @@ const mockMessages: Record<string, Message[]> = {
 }
 
 export default function MessagesPage() {
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(mockContacts[0])
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [messageInput, setMessageInput] = useState("")
   const [activeTab, setActiveTab] = useState("all")
-  const [contacts, setContacts] = useState(mockContacts)
-  const [messages, setMessages] = useState<Message[]>(mockMessages["1"] || [])
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [messages, setMessages] = useState<Message[]>([])
   const [isTyping, setIsTyping] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [conversationMode, setConversationMode] = useState<ConversationMode>({
@@ -285,9 +288,87 @@ export default function MessagesPage() {
     },
   })
   const [isRecording, setIsRecording] = useState(false)
+  const [loading, setLoading] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+
+  // Load conversations from API
+  useEffect(() => {
+    const loadConversations = async () => {
+      try {
+        setLoading(true)
+        const result = await apiClient.getConversations({
+          page: 1,
+          limit: 50,
+          status: activeTab === "all" ? undefined : activeTab,
+          search: searchQuery || undefined
+        })
+        
+        if (result.success) {
+          const conversations = result.data.conversations || []
+          setContacts(conversations.map(conv => ({
+            id: conv.id,
+            name: conv.name,
+            avatar: conv.avatar,
+            role: conv.role,
+            status: conv.status,
+            lastMessage: conv.lastMessage,
+            lastMessageTime: conv.time_relative,
+            unreadCount: conv.unreadCount,
+            isPinned: conv.isPinned,
+            isMuted: conv.isMuted,
+            phone: conv.phone,
+            email: conv.email || "",
+            is_escalated: conv.is_escalated,
+            metadata: conv.metadata
+          })))
+          
+          // Auto-select first conversation if none selected
+          if (!selectedContact && conversations.length > 0) {
+            const firstContact = conversations[0]
+            setSelectedContact({
+              id: firstContact.id,
+              name: firstContact.name,
+              avatar: firstContact.avatar,
+              role: firstContact.role,
+              status: firstContact.status,
+              lastMessage: firstContact.lastMessage,
+              lastMessageTime: firstContact.time_relative,
+              unreadCount: firstContact.unreadCount,
+              isPinned: firstContact.isPinned,
+              isMuted: firstContact.isMuted,
+              phone: firstContact.phone,
+              email: firstContact.email || "",
+              is_escalated: firstContact.is_escalated,
+              metadata: firstContact.metadata
+            })
+            
+            // Set conversation mode based on escalation status
+            setConversationMode(prev => ({
+              ...prev,
+              aiEnabled: !firstContact.is_escalated
+            }))
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load conversations:', error)
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les conversations",
+          variant: "destructive"
+        })
+        // Fallback to mock data if API fails
+        setContacts(mockContacts)
+        setSelectedContact(mockContacts[0])
+        setMessages(mockMessages["1"] || [])
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadConversations()
+  }, [activeTab, searchQuery])
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {
@@ -321,13 +402,39 @@ export default function MessagesPage() {
       return 0
     })
 
-  const handleContactSelect = (contact: Contact) => {
+  const handleContactSelect = async (contact: Contact) => {
     setSelectedContact(contact)
-    setMessages(mockMessages[contact.id] || [])
-
-    // Mark as read
-    if (contact.unreadCount > 0) {
-      setContacts((prev) => prev.map((c) => (c.id === contact.id ? { ...c, unreadCount: 0 } : c)))
+    
+    try {
+      // Load messages for the selected conversation
+      const result = await apiClient.getConversationMessages(contact.id, {
+        page: 1,
+        limit: 50
+      })
+      
+      if (result.success) {
+        setMessages(result.data.messages || [])
+      }
+      
+      // Set conversation mode based on escalation status
+      setConversationMode(prev => ({
+        ...prev,
+        aiEnabled: !(contact as any).is_escalated
+      }))
+      
+      // Mark as read
+      if (contact.unreadCount > 0) {
+        setContacts((prev) => prev.map((c) => (c.id === contact.id ? { ...c, unreadCount: 0 } : c)))
+      }
+    } catch (error) {
+      console.error('Failed to load messages for conversation:', error)
+      toast({
+        title: "Erreur", 
+        description: "Impossible de charger les messages",
+        variant: "destructive"
+      })
+      // Fallback to empty messages
+      setMessages([])
     }
   }
 
@@ -342,80 +449,50 @@ export default function MessagesPage() {
     if (!messageContent.trim() && !attachments && !location && !contact) return
     if (!selectedContact) return
 
-    // Determine sender based on conversation mode
-    let senderType: "user" | "ai_agent" | "human_agent" = "user"
-    let senderName = "Admin"
-    let senderId = "admin"
-
-    if (conversationMode.type === "ai" || (conversationMode.type === "hybrid" && conversationMode.aiEnabled)) {
-      // Simulate AI response for certain keywords
-      if (messageContent.toLowerCase().includes("problème") || messageContent.toLowerCase().includes("aide")) {
-        senderType = "ai_agent"
-        senderName = "Assistant IA Djobea"
-        senderId = "ai_agent_1"
-      }
-    }
-
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      senderId,
-      senderName,
-      senderType,
-      content: messageContent,
-      timestamp: new Date().toISOString(),
-      type,
-      status: "sent",
-      attachments,
-      location,
-      contact,
-      metadata:
-        senderType === "ai_agent"
-          ? {
-              agentId: "ai_agent_1",
-              confidence: Math.random() * 0.3 + 0.7, // 0.7-1.0
-              processingTime: Math.random() * 2 + 0.5, // 0.5-2.5s
-            }
-          : undefined,
-    }
-
-    setMessages((prev) => [...prev, newMessage])
-    setMessageInput("")
-
-    // Simulate message delivery and read status
-    setTimeout(() => {
-      setMessages((prev) => prev.map((msg) => (msg.id === newMessage.id ? { ...msg, status: "delivered" } : msg)))
-    }, 1000)
-
-    setTimeout(() => {
-      setMessages((prev) => prev.map((msg) => (msg.id === newMessage.id ? { ...msg, status: "read" } : msg)))
-    }, 3000)
-
-    // Simulate AI or human response
-    if (senderType === "user" && conversationMode.aiEnabled) {
-      setTimeout(() => {
-        const aiResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          senderId: "ai_agent_1",
-          senderName: "Assistant IA Djobea",
-          senderType: "ai_agent",
-          content: getAIResponse(messageContent),
-          timestamp: new Date().toISOString(),
-          type: "text",
-          status: "sent",
-          metadata: {
-            agentId: "ai_agent_1",
-            confidence: Math.random() * 0.3 + 0.7,
-            processingTime: Math.random() * 2 + 1,
-          },
+    try {
+      setMessageInput("")
+      
+      // Send message through the API
+      const senderType = conversationMode.aiEnabled ? "ai" : "admin"
+      
+      await apiClient.sendMessage({
+        conversationId: selectedContact.id,
+        content: messageContent,
+        type,
+        senderType,
+        attachments,
+        metadata: {
+          location,
+          contact,
+          manual_send: true
         }
-        setMessages((prev) => [...prev, aiResponse])
-      }, 2000)
-    }
+      })
 
-    toast({
-      title: "Message envoyé",
-      description: `Message envoyé à ${selectedContact.name}`,
-    })
+      // Refresh messages to get the latest state
+      if (selectedContact) {
+        const messagesResult = await apiClient.getConversationMessages(selectedContact.id)
+        if (messagesResult.success) {
+          setMessages(messagesResult.data.messages || [])
+        }
+      }
+
+      toast({
+        title: "Message envoyé",
+        description: conversationMode.aiEnabled 
+          ? "L'IA va traiter votre message et répondre automatiquement"
+          : `Message envoyé à ${selectedContact.name}`,
+      })
+      
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'envoyer le message",
+        variant: "destructive"
+      })
+      console.error('Failed to send message:', error)
+      // Restore the message input on error
+      setMessageInput(messageContent)
+    }
   }
 
   const getAIResponse = (userInput: string): string => {
@@ -540,18 +617,45 @@ export default function MessagesPage() {
     })
   }
 
-  const toggleConversationMode = () => {
-    setConversationMode((prev) => ({
-      ...prev,
-      aiEnabled: !prev.aiEnabled,
-    }))
+  const toggleConversationMode = async () => {
+    if (!selectedContact) return
+    
+    try {
+      // Call the backend escalation API
+      const action = conversationMode.aiEnabled ? 'escalate' : 'deescalate'
+      const reason = conversationMode.aiEnabled 
+        ? 'Manual escalation to human agent' 
+        : 'Returning to AI agent'
+        
+      await apiClient.toggleEscalation(selectedContact.id, { action, reason })
+      
+      setConversationMode((prev) => ({
+        ...prev,
+        aiEnabled: !prev.aiEnabled,
+      }))
 
-    toast({
-      title: conversationMode.aiEnabled ? "Mode humain activé" : "Mode IA activé",
-      description: conversationMode.aiEnabled
-        ? "Les messages seront traités par un agent humain"
-        : "Les messages seront traités par l'IA",
-    })
+      toast({
+        title: conversationMode.aiEnabled ? "Mode humain activé" : "Mode IA activé",
+        description: conversationMode.aiEnabled
+          ? "Les messages seront traités par un agent humain"
+          : "Les messages seront traités par l'IA",
+      })
+      
+      // Update contact to reflect escalation status
+      setContacts((prev) => prev.map(contact => 
+        contact.id === selectedContact.id 
+          ? { ...contact, is_escalated: !conversationMode.aiEnabled }
+          : contact
+      ))
+      
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de changer le mode de conversation",
+        variant: "destructive"
+      })
+      console.error('Failed to toggle conversation mode:', error)
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -776,7 +880,17 @@ export default function MessagesPage() {
             <CardContent className="p-0">
               <ScrollArea className="h-[calc(100vh-16rem)]">
                 <div className="space-y-1 p-4">
-                  {filteredContacts.map((contact) => (
+                  {loading ? (
+                    <div className="flex items-center justify-center h-32">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : filteredContacts.length === 0 ? (
+                    <div className="text-center text-gray-400 py-8">
+                      <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Aucune conversation trouvée</p>
+                    </div>
+                  ) : (
+                    filteredContacts.map((contact) => (
                     <div
                       key={contact.id}
                       className={cn(
@@ -809,6 +923,12 @@ export default function MessagesPage() {
                             <p className="text-sm font-medium text-white truncate">{contact.name}</p>
                             {contact.isPinned && <Pin className="h-3 w-3 text-yellow-400" />}
                             {contact.isMuted && <VolumeX className="h-3 w-3 text-gray-400" />}
+                            {(contact as any).is_escalated && (
+                              <User className="h-3 w-3 text-orange-400" title="Escaladé vers un agent humain" />
+                            )}
+                            {!(contact as any).is_escalated && (
+                              <Bot className="h-3 w-3 text-blue-400" title="Géré par l'IA" />
+                            )}
                           </div>
                           <div className="flex items-center space-x-1">
                             <Badge variant="secondary" className={cn("text-xs", getRoleColor(contact.role))}>
@@ -862,7 +982,8 @@ export default function MessagesPage() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </ScrollArea>
             </CardContent>
