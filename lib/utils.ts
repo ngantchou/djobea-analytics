@@ -46,6 +46,10 @@ export function formatNumber(num: number): string {
   return new Intl.NumberFormat("fr-FR").format(num)
 }
 
+export function formatPercentage(value: number, decimals: number = 1): string {
+  return `${value.toFixed(decimals)}%`
+}
+
 export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text
   return text.slice(0, maxLength) + "..."

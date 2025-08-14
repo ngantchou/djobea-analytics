@@ -125,11 +125,15 @@ export function useRequestsData(filters: RequestsFilters = {}) {
       setLoading(true)
       setError(null)
 
+      console.log("🔄 Fetching requests with filters:", filters)
+
       const transformedFilters = transformFilters(filters)
       const page = filters.page || 1
       const limit = filters.limit || 20
 
       const result = await RequestsService.getRequests(transformedFilters, page, limit)
+
+      console.log("📦 Requests API Response:", result)
 
       setData({
         requests: result.requests,
@@ -139,9 +143,12 @@ export function useRequestsData(filters: RequestsFilters = {}) {
         stats: result.stats, // Include stats from the API response
       })
 
+      console.log("✅ Requests data set successfully")
+
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur lors du chargement des demandes"
       setError(message)
+      console.error("❌ Failed to fetch requests data:", { error: err, filters })
       logger.error("Failed to fetch requests data", { error: err, filters })
 
       toast({
@@ -152,11 +159,16 @@ export function useRequestsData(filters: RequestsFilters = {}) {
     } finally {
       setLoading(false)
     }
-  }, [JSON.stringify(filters), toast, transformFilters])
+  }, [filters.page, filters.limit, filters.search, filters.serviceType, filters.location, filters.priority, filters.status, filters.dateRange, toast, transformFilters])
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    console.log("🚀 Requests useEffect triggered, calling fetchData")
+    const debounceTimer = setTimeout(() => {
+      fetchData()
+    }, 300) // Debounce API calls by 300ms
+    
+    return () => clearTimeout(debounceTimer)
+  }, [filters.page, filters.limit, filters.search, filters.serviceType, filters.location, filters.priority, filters.status, filters.dateRange])
 
   const refetch = useCallback(() => {
     fetchData()

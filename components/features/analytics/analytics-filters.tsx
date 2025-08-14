@@ -11,6 +11,7 @@ import { toast } from "sonner"
 import { motion } from "framer-motion"
 import { Card, CardContent } from "@/components/ui/card"
 import { useAnalyticsExport } from "@/hooks/use-analytics-data"
+import { apiClient } from "@/lib/api-client"
 
 const FiltersContainer = styled(Card)`
   background: rgba(31, 41, 55, 0.8);
@@ -192,19 +193,23 @@ export function AnalyticsFilters({ period, onPeriodChange, onFiltersChange }: An
 
   const fetchFilterOptions = async () => {
     try {
-      const [providersRes, zonesRes] = await Promise.all([fetch("/api/providers?active=true"), fetch("/api/zones")])
+      const [providersRes, zonesRes] = await Promise.all([
+        apiClient.getProviders({ status: "active" }),
+        apiClient.getZones()
+      ])
 
-      if (providersRes.ok) {
-        const providers = await providersRes.json()
-        setAvailableProviders(providers.data || [])
+      if (providersRes.success) {
+        setAvailableProviders(providersRes.data || [])
       }
 
-      if (zonesRes.ok) {
-        const zones = await zonesRes.json()
-        setAvailableZones(zones.data || [])
+      if (zonesRes.success) {
+        setAvailableZones(zonesRes.data || [])
       }
     } catch (error) {
       console.error("Error fetching filter options:", error)
+      toast.error("Erreur", {
+        description: "Impossible de charger les options de filtrage",
+      })
     }
   }
 
@@ -499,7 +504,6 @@ export function AnalyticsFilters({ period, onPeriodChange, onFiltersChange }: An
               <Download className={`w-4 h-4 mr-2 ${isExporting ? "animate-spin" : ""}`} />
               {isExporting ? "Export..." : "Exporter"}
             </Button>
-
             <Button
               variant="outline"
               size="sm"

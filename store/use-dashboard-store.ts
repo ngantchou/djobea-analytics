@@ -48,15 +48,25 @@ interface DashboardStore {
   toggleRealTime: () => void
   lastUpdate: Date | null
   setLastUpdate: (date: Date) => void
+
+  // Loading and error states
+  isLoading: boolean
+  error: string | null
+  setLoading: (loading: boolean) => void
+  setError: (error: string | null) => void
+
+  // Performance optimizations
+  batchUpdateStats: (updates: Partial<DashboardStats>[]) => void
+  clearCache: () => void
 }
 
 const defaultStats: DashboardStats = {
-  totalRequests: 1247,
-  pendingRequests: 23,
-  activeProviders: 156,
-  completedRequests: 1224,
-  revenue: 45678.9,
-  averageRating: 4.7,
+  totalRequests: 0,
+  pendingRequests: 0,
+  activeProviders: 0,
+  completedRequests: 0,
+  revenue: 0,
+  averageRating: 0,
 }
 
 const defaultWidgets: DashboardWidget[] = [
@@ -98,8 +108,9 @@ export const useDashboardStore = create<DashboardStore>()(
             ...updates,
           },
           lastUpdate: new Date(),
+          error: null, // Clear error on successful update
         })),
-      resetStats: () => set({ stats: defaultStats }),
+      resetStats: () => set({ stats: defaultStats, error: null }),
 
       // Widgets
       widgets: defaultWidgets,
@@ -109,7 +120,7 @@ export const useDashboardStore = create<DashboardStore>()(
             ...state.widgets,
             {
               ...widget,
-              id: `widget-${Date.now()}`,
+              id: `widget-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             },
           ],
         })),
@@ -138,19 +149,68 @@ export const useDashboardStore = create<DashboardStore>()(
       setDateRange: (range) => set({ dateRange: range }),
 
       // Real-time updates
-      isRealTimeEnabled: true,
+      isRealTimeEnabled: process.env.NODE_ENV === 'development', // Disabled in production by default
       toggleRealTime: () => set((state) => ({ isRealTimeEnabled: !state.isRealTimeEnabled })),
       lastUpdate: null,
       setLastUpdate: (date) => set({ lastUpdate: date }),
+
+      // Loading and error states
+      isLoading: false,
+      error: null,
+      setLoading: (loading) => set({ isLoading: loading }),
+      setError: (error) => set({ error }),
+
+      // Performance optimizations
+      batchUpdateStats: (updates) => {
+        const finalUpdate = updates.reduce((acc, update) => ({ ...acc, ...update }), {})
+        set((state) => ({
+          stats: {
+            ...state.stats,
+            ...finalUpdate,
+          },
+          lastUpdate: new Date(),
+          error: null,
+        }))
+      },
+      clearCache: () => {
+        // Clear non-essential cached data
+        set((state) => ({
+          ...state,
+          lastUpdate: null,
+          error: null,
+        }))
+      },
     }),
     {
       name: "dashboard-store",
+      // Only persist user preferences, not dynamic data
       partialize: (state) => ({
         widgets: state.widgets,
         layout: state.layout,
         isRealTimeEnabled: state.isRealTimeEnabled,
         dateRange: state.dateRange,
       }),
+      // Add version for migration support
+      version: 1,
+      // Optimize storage
+      storage: {
+        getItem: (name) => {
+          try {
+            const str = localStorage.getItem(name)
+            return str ? JSON.parse(str) : null
+          } catch {
+            return null
+          }
+        },
+        setItem: (name, value) => {
+          try {
+            localStorage.setItem(name, JSON.stringify(value))
+          } catch (error) {
+            console.warn('Failed to persist dashboard store:', error)
+          }
+        },
+        removeItem: (name) => localStorage.removeItem(name),
+      },
     },
   ),
 )

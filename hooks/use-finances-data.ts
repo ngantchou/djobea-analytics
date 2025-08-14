@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
+import { apiClient } from "@/lib/api-client"
 
 interface FinancesData {
   totalRevenue: number
@@ -30,11 +31,16 @@ interface FinancesData {
 }
 
 async function fetchFinancesData(): Promise<FinancesData> {
-  const response = await fetch("/api/finances")
-  if (!response.ok) {
-    throw new Error("Failed to fetch finances data")
+  const response = await apiClient.request("/api/finances", {
+    method: "GET",
+    requireAuth: false
+  })
+  
+  if (!response.success) {
+    throw new Error(response.error || "Failed to fetch finances data")
   }
-  return response.json()
+  
+  return response.data
 }
 
 export function useFinancesData() {

@@ -66,11 +66,21 @@ interface ApiResponse {
 
 export function useProvidersData(filters: ProvidersFilters = {}) {
   const [data, setData] = useState<ApiResponse | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false) // Start with false to prevent initial unnecessary loading state
   const [error, setError] = useState<string | null>(null)
+  const [lastFetchedFilters, setLastFetchedFilters] = useState<string>('')
+  const [isInitialized, setIsInitialized] = useState(false)
   const { toast } = useToast()
 
   const fetchData = useCallback(async () => {
+    const filtersString = JSON.stringify(filters)
+    
+    // Prevent duplicate API calls for same filters
+    if (filtersString === lastFetchedFilters && data !== null) {
+      console.log('🚫 Skipping duplicate API call for same filters')
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
@@ -84,6 +94,7 @@ export function useProvidersData(filters: ProvidersFilters = {}) {
 
       if (result.success) {
         setData(result)
+        setLastFetchedFilters(filtersString)
         console.log("✅ Providers data set successfully")
       } else {
         const errorMessage = result.error || "Failed to fetch providers data"
@@ -104,12 +115,23 @@ export function useProvidersData(filters: ProvidersFilters = {}) {
     } finally {
       setLoading(false)
     }
-  }, [JSON.stringify(filters)])
+  }, [filters.page, filters.limit, filters.search, filters.status, filters.specialty, filters.zone, filters.rating, lastFetchedFilters, data])
 
   useEffect(() => {
     console.log("🚀 useEffect triggered, calling fetchData")
-    fetchData()
-  }, [fetchData])
+    
+    // Only debounce if already initialized, otherwise fetch immediately
+    if (!isInitialized) {
+      setIsInitialized(true)
+      fetchData()
+    } else {
+      const debounceTimer = setTimeout(() => {
+        fetchData()
+      }, 300) // Debounce API calls by 300ms
+      
+      return () => clearTimeout(debounceTimer)
+    }
+  }, [filters.page, filters.limit, filters.search, filters.status, filters.specialty, filters.zone, filters.rating, isInitialized])
 
   const refetch = useCallback(() => {
     console.log("🔄 Manual refetch triggered")

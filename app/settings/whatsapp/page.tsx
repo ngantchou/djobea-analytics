@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
+import { SettingsService } from "@/lib/services/settings-service"
 import {
   ArrowLeft,
   Settings,
@@ -495,30 +496,34 @@ export default function WhatsAppSettingsPage() {
     showNotification("Sauvegarde de la configuration WhatsApp...", "info")
 
     try {
-      const response = await fetch("/api/settings/whatsapp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          config: whatsappConfig,
-          messaging: messagingSettings,
-          templates: templates,
-        }),
+      await SettingsService.updateWhatsAppSettings({
+        config: whatsappConfig,
+        messaging: messagingSettings,
+        templates: templates,
       })
-
-      if (response.ok) {
-        showNotification("✅ Configuration WhatsApp sauvegardée avec succès", "success")
-        setConfigurationChanged(false)
-      } else {
-        throw new Error("Erreur de sauvegarde")
-      }
+      showNotification("✅ Configuration WhatsApp sauvegardée avec succès", "success")
+      setConfigurationChanged(false)
     } catch (error) {
       showNotification("❌ Erreur lors de la sauvegarde", "error")
     } finally {
       setLoading(false)
     }
   }
+
+  // Load WhatsApp settings on component mount
+  useEffect(() => {
+    const loadWhatsAppSettings = async () => {
+      try {
+        const data = await SettingsService.getWhatsAppSettings()
+        if (data.config) setWhatsAppConfig(data.config)
+        if (data.messaging) setMessagingSettings(data.messaging)
+        if (data.templates) setTemplates(data.templates)
+      } catch (error) {
+        console.error("Erreur lors du chargement des paramètres WhatsApp:", error)
+      }
+    }
+    loadWhatsAppSettings()
+  }, [])
 
   useEffect(() => {
     if (autoRefresh) {

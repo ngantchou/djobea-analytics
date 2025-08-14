@@ -327,4 +327,109 @@ export class SettingsService {
       throw new Error("Erreur lors de la suppression des logs")
     }
   }
+
+  // AI-specific settings methods
+  static async getAISettings(): Promise<any> {
+    try {
+      const response = await ApiClient.get<any>("/api/settings/ai")
+      return response
+    } catch (error) {
+      console.error("Get AI settings error:", error)
+      throw new Error("Erreur lors de la récupération des paramètres IA")
+    }
+  }
+
+  static async updateAISettings(settings: any): Promise<any> {
+    try {
+      const response = await ApiClient.post<any>("/api/settings/ai", settings)
+      return response
+    } catch (error) {
+      console.error("Update AI settings error:", error)
+      throw new Error("Erreur lors de la mise à jour des paramètres IA")
+    }
+  }
+
+  // WhatsApp-specific settings methods
+  static async getWhatsAppSettings(): Promise<any> {
+    try {
+      const response = await ApiClient.get<any>("/api/settings/whatsapp")
+      return response
+    } catch (error) {
+      console.error("Get WhatsApp settings error:", error)
+      throw new Error("Erreur lors de la récupération des paramètres WhatsApp")
+    }
+  }
+
+  static async updateWhatsAppSettings(settings: any): Promise<any> {
+    try {
+      const response = await ApiClient.post<any>("/api/settings/whatsapp", settings)
+      return response
+    } catch (error) {
+      console.error("Update WhatsApp settings error:", error)
+      throw new Error("Erreur lors de la mise à jour des paramètres WhatsApp")
+    }
+  }
+
+  // Business-specific settings methods
+  static async getBusinessSettings(): Promise<any> {
+    try {
+      const response = await ApiClient.get<any>("/api/settings/business")
+      return response
+    } catch (error) {
+      console.error("Get Business settings error:", error)
+      throw new Error("Erreur lors de la récupération des paramètres business")
+    }
+  }
+
+  static async updateBusinessSettings(settings: any): Promise<any> {
+    try {
+      const response = await ApiClient.post<any>("/api/settings/business", settings)
+      return response
+    } catch (error) {
+      console.error("Update Business settings error:", error)
+      throw new Error("Erreur lors de la mise à jour des paramètres business")
+    }
+  }
+
+  // Security-specific settings methods
+  static async getSecuritySettings(): Promise<any> {
+    try {
+      const response = await ApiClient.get<any>("/api/settings/security")
+      return response
+    } catch (error) {
+      console.error("Get Security settings error:", error)
+      throw new Error("Erreur lors de la récupération des paramètres sécurité")
+    }
+  }
+
+  static async updateSecuritySettings(settings: any): Promise<any> {
+    try {
+      const response = await ApiClient.post<any>("/api/settings/security", settings)
+      return response
+    } catch (error) {
+      console.error("Update Security settings error:", error)
+      throw new Error("Erreur lors de la mise à jour des paramètres sécurité")
+    }
+  }
+
+  // Notifications-specific settings methods
+  static async getNotificationsSettings(): Promise<any> {
+    try {
+      const response = await ApiClient.get<any>("/api/settings/notifications")
+      return response
+    } catch (error) {
+      console.error("Get Notifications settings error:", error)
+      throw new Error("Erreur lors de la récupération des paramètres notifications")
+    }
+  }
+
+  static async updateNotificationsSettings(settings: any): Promise<any> {
+    try {
+      const response = await ApiClient.post<any>("/api/settings/notifications", settings)
+      return response
+    } catch (error) {
+      console.error("Update Notifications settings error:", error)
+      throw new Error("Erreur lors de la mise à jour des paramètres notifications")
+    }
+  }
 }

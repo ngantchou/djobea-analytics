@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { SettingsService } from "@/lib/services/settings-service"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -195,19 +196,10 @@ export default function SecuritySettingsPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      const response = await fetch("/api/settings/security", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
-      })
-
-      if (response.ok) {
-        setHasChanges(false)
-        showNotification("success", "Paramètres de sécurité sauvegardés avec succès")
-        calculateSecurityScore()
-      } else {
-        throw new Error("Erreur lors de la sauvegarde")
-      }
+      await SettingsService.updateSecuritySettings(settings)
+      setHasChanges(false)
+      showNotification("success", "Paramètres de sécurité sauvegardés avec succès")
+      calculateSecurityScore()
     } catch (error) {
       console.error("Failed to save settings:", error)
       showNotification("error", "Erreur lors de la sauvegarde des paramètres")
@@ -342,12 +334,9 @@ export default function SecuritySettingsPage() {
     // Load settings from API
     const loadSettings = async () => {
       try {
-        const response = await fetch("/api/settings/security")
-        if (response.ok) {
-          const data = await response.json()
-          setSettings(data.settings)
-          setSecurityScore(data.securityScore)
-        }
+        const data = await SettingsService.getSecuritySettings()
+        setSettings(data.settings)
+        setSecurityScore(data.securityScore)
       } catch (error) {
         console.error("Failed to load settings:", error)
         showNotification("error", "Erreur lors du chargement des paramètres")

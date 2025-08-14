@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 
 interface FinancesQuickActionsProps {
-  onRefresh: () => void
+  onRefresh?: () => void
 }
 
 export function FinancesQuickActions({ onRefresh }: FinancesQuickActionsProps) {
@@ -21,7 +21,9 @@ export function FinancesQuickActions({ onRefresh }: FinancesQuickActionsProps) {
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
-      await onRefresh()
+      if (onRefresh) {
+        await onRefresh()
+      }
       toast.success("Données actualisées avec succès")
     } catch (error) {
       toast.error("Erreur lors de l'actualisation")
@@ -114,15 +116,11 @@ export function FinancesQuickActions({ onRefresh }: FinancesQuickActionsProps) {
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-300">Actions rapides</span>
             <Badge variant="outline" className="border-blue-500/30 text-blue-400">
-              6 disponibles
+              5 disponibles
             </Badge>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={() => setIsAddTransactionOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Nouvelle Transaction
-            </Button>
 
             <Button
               onClick={handleExport}

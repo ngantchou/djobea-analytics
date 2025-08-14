@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { SettingsService } from "@/lib/services/settings-service"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -212,11 +213,8 @@ export default function NotificationsSettingsPage() {
     // Load settings from API
     const loadSettings = async () => {
       try {
-        const response = await fetch("/api/settings/notifications")
-        if (response.ok) {
-          const data = await response.json()
-          setSettings(data)
-        }
+        const data = await SettingsService.getNotificationsSettings()
+        setSettings(data)
       } catch (error) {
         console.error("Failed to load settings:", error)
       }
@@ -271,14 +269,8 @@ export default function NotificationsSettingsPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      const response = await fetch("/api/settings/notifications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
-      })
-      if (response.ok) {
-        setHasChanges(false)
-      }
+      await SettingsService.updateNotificationsSettings(settings)
+      setHasChanges(false)
     } catch (error) {
       console.error("Failed to save settings:", error)
     }

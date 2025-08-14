@@ -115,158 +115,7 @@ interface ConversationMode {
   }
 }
 
-// Mock data
-const mockContacts: Contact[] = [
-  {
-    id: "1",
-    name: "Marie Dubois",
-    avatar: "/placeholder.svg?height=40&width=40&text=MD",
-    role: "client",
-    status: "online",
-    lastMessage: "Merci pour votre aide, le problème est résolu !",
-    lastMessageTime: "Il y a 2 min",
-    unreadCount: 0,
-    isPinned: true,
-    isMuted: false,
-    phone: "+237 6 12 34 56 78",
-    email: "marie.dubois@email.com",
-    location: {
-      lat: 4.0511,
-      lng: 9.7679,
-      address: "Douala, Cameroun",
-    },
-  },
-  {
-    id: "2",
-    name: "Jean Plombier",
-    avatar: "/placeholder.svg?height=40&width=40&text=JP",
-    role: "provider",
-    status: "online",
-    lastMessage: "Je peux venir demain matin vers 9h",
-    lastMessageTime: "Il y a 5 min",
-    unreadCount: 2,
-    isPinned: false,
-    isMuted: false,
-    phone: "+237 6 98 76 54 32",
-    email: "jean.plombier@email.com",
-  },
-  {
-    id: "3",
-    name: "Sophie Martin",
-    avatar: "/placeholder.svg?height=40&width=40&text=SM",
-    role: "client",
-    status: "away",
-    lastMessage: "D'accord, à bientôt",
-    lastMessageTime: "Il y a 1h",
-    unreadCount: 1,
-    isPinned: false,
-    isMuted: false,
-    phone: "+237 6 11 22 33 44",
-    email: "sophie.martin@email.com",
-  },
-]
-
-const mockMessages: Record<string, Message[]> = {
-  "1": [
-    {
-      id: "1",
-      senderId: "1",
-      senderName: "Marie Dubois",
-      senderType: "user",
-      content: "Bonjour, j'ai un problème avec ma plomberie",
-      timestamp: "2024-01-15T10:30:00Z",
-      type: "text",
-      status: "read",
-    },
-    {
-      id: "2",
-      senderId: "ai_agent_1",
-      senderName: "Assistant IA Djobea",
-      senderType: "ai_agent",
-      content:
-        "Bonjour Marie ! Je comprends votre problème de plomberie. Pouvez-vous me décrire plus précisément le problème ?",
-      timestamp: "2024-01-15T10:31:00Z",
-      type: "text",
-      status: "read",
-      metadata: {
-        agentId: "ai_agent_1",
-        confidence: 0.95,
-        processingTime: 1.2,
-      },
-    },
-    {
-      id: "3",
-      senderId: "1",
-      senderName: "Marie Dubois",
-      senderType: "user",
-      content: "Voici une photo du problème",
-      timestamp: "2024-01-15T10:35:00Z",
-      type: "image",
-      status: "read",
-      attachments: [
-        {
-          type: "image",
-          url: "/placeholder.svg?height=200&width=300&text=Problème+Plomberie",
-          name: "probleme_plomberie.jpg",
-          size: "2.5 MB",
-          thumbnail: "/placeholder.svg?height=100&width=150&text=Thumb",
-        },
-      ],
-    },
-    {
-      id: "4",
-      senderId: "human_agent_1",
-      senderName: "Agent Paul",
-      senderType: "human_agent",
-      content:
-        "Je vois le problème sur la photo. Je vais vous mettre en contact avec Jean, notre meilleur plombier de votre secteur.",
-      timestamp: "2024-01-15T10:40:00Z",
-      type: "text",
-      status: "read",
-    },
-    {
-      id: "5",
-      senderId: "human_agent_1",
-      senderName: "Agent Paul",
-      senderType: "human_agent",
-      content: "",
-      timestamp: "2024-01-15T10:41:00Z",
-      type: "contact",
-      status: "read",
-      contact: {
-        name: "Jean Plombier",
-        phone: "+237 6 98 76 54 32",
-        email: "jean.plombier@email.com",
-        avatar: "/placeholder.svg?height=40&width=40&text=JP",
-      },
-    },
-    {
-      id: "6",
-      senderId: "1",
-      senderName: "Marie Dubois",
-      senderType: "user",
-      content: "",
-      timestamp: "2024-01-15T10:45:00Z",
-      type: "location",
-      status: "read",
-      location: {
-        lat: 4.0511,
-        lng: 9.7679,
-        address: "123 Rue de la Paix, Douala, Cameroun",
-      },
-    },
-    {
-      id: "7",
-      senderId: "1",
-      senderName: "Marie Dubois",
-      senderType: "user",
-      content: "😊 Merci beaucoup !",
-      timestamp: "2024-01-15T14:25:00Z",
-      type: "emoji",
-      status: "read",
-    },
-  ],
-}
+// Empty initial state - all data comes from API
 
 export default function MessagesPage() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
@@ -289,15 +138,19 @@ export default function MessagesPage() {
   })
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [retryAttempts, setRetryAttempts] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
-  // Load conversations from API
+  // Load conversations from API with retry mechanism
   useEffect(() => {
     const loadConversations = async () => {
       try {
         setLoading(true)
+        setError(null)
+        
         const result = await apiClient.getConversations({
           page: 1,
           limit: 50,
@@ -350,25 +203,36 @@ export default function MessagesPage() {
               aiEnabled: !firstContact.is_escalated
             }))
           }
+          
+          // Reset retry attempts on success
+          setRetryAttempts(0)
+        } else {
+          throw new Error(result.error || "Failed to load conversations")
         }
       } catch (error) {
         console.error('Failed to load conversations:', error)
+        const errorMessage = error instanceof Error ? error.message : "Erreur de connexion"
+        setError(errorMessage)
+        
         toast({
           title: "Erreur",
-          description: "Impossible de charger les conversations",
-          variant: "destructive"
+          description: `Impossible de charger les conversations: ${errorMessage}`,
+          variant: "destructive",
+          action: retryAttempts < 3 ? {
+            label: "Réessayer",
+            onClick: () => {
+              setRetryAttempts(prev => prev + 1)
+              loadConversations()
+            }
+          } : undefined
         })
-        // Fallback to mock data if API fails
-        setContacts(mockContacts)
-        setSelectedContact(mockContacts[0])
-        setMessages(mockMessages["1"] || [])
       } finally {
         setLoading(false)
       }
     }
     
     loadConversations()
-  }, [activeTab, searchQuery])
+  }, [activeTab, searchQuery, retryAttempts])
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {
@@ -883,11 +747,33 @@ export default function MessagesPage() {
                   {loading ? (
                     <div className="flex items-center justify-center h-32">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <p className="text-gray-400 mt-4">Chargement des conversations...</p>
+                    </div>
+                  ) : error ? (
+                    <div className="text-center text-red-400 py-8">
+                      <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="mb-4">Erreur de connexion</p>
+                      <p className="text-sm text-gray-400 mb-4">{error}</p>
+                      {retryAttempts < 3 && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setRetryAttempts(prev => prev + 1)}
+                          className="bg-transparent border-red-400 text-red-400 hover:bg-red-400 hover:text-white"
+                        >
+                          Réessayer
+                        </Button>
+                      )}
                     </div>
                   ) : filteredContacts.length === 0 ? (
                     <div className="text-center text-gray-400 py-8">
                       <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>Aucune conversation trouvée</p>
+                      {searchQuery && (
+                        <p className="text-sm text-gray-500 mt-2">
+                          Essayez de modifier votre recherche
+                        </p>
+                      )}
                     </div>
                   ) : (
                     filteredContacts.map((contact) => (

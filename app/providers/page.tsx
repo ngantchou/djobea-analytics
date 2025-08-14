@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import styled from "styled-components"
 import { motion } from "framer-motion"
 import { Plus, Users, UserCheck, TrendingUp } from "lucide-react"
@@ -204,19 +204,27 @@ export default function ProvidersPage() {
     avgRating: 0,
   }
 
-  const handleFiltersChange = (newFilters: FiltersType) => {
-    setFilters(newFilters)
-    setCurrentPage(1) // Reset to first page when filters change
-  }
+  const handleFiltersChange = useCallback((newFilters: FiltersType) => {
+    // Only update if filters actually changed
+    const hasChanged = JSON.stringify(filters) !== JSON.stringify(newFilters)
+    if (hasChanged) {
+      setFilters(newFilters)
+      setCurrentPage(1) // Reset to first page when filters change
+    }
+  }, [filters])
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page)
-  }
+  const handlePageChange = useCallback((page: number) => {
+    if (page !== currentPage) {
+      setCurrentPage(page)
+    }
+  }, [currentPage])
 
-  const handlePageSizeChange = (size: number) => {
-    setPageSize(size)
-    setCurrentPage(1) // Reset to first page when page size changes
-  }
+  const handlePageSizeChange = useCallback((size: number) => {
+    if (size !== pageSize) {
+      setPageSize(size)
+      setCurrentPage(1) // Reset to first page when page size changes
+    }
+  }, [pageSize])
 
   const handleAddProvider = () => {
     setShowAddModal(true)
@@ -249,11 +257,13 @@ export default function ProvidersPage() {
     setActiveModal("delete")
   }
 
-  const closeModal = () => {
+  const closeModal = (shouldRefetch = false) => {
     setActiveModal(null)
     setSelectedProviderId(null)
     setSelectedProviderName("")
-    refetch() // Refresh data after modal actions
+    if (shouldRefetch) {
+      refetch() // Only refresh data when needed
+    }
   }
 
   // Create proper pagination object for the component
@@ -380,15 +390,15 @@ export default function ProvidersPage() {
         {/* All Modals */}
         <AddProviderModal isOpen={showAddModal} onClose={handleCloseAddModal} />
 
-        <ViewProviderModal isOpen={activeModal === "view"} onClose={closeModal} providerId={selectedProviderId} />
+        <ViewProviderModal isOpen={activeModal === "view"} onClose={() => closeModal(false)} providerId={selectedProviderId} />
 
-        <EditProviderModal isOpen={activeModal === "edit"} onClose={closeModal} providerId={selectedProviderId} />
+        <EditProviderModal isOpen={activeModal === "edit"} onClose={() => closeModal(true)} providerId={selectedProviderId} />
 
-        <ContactProviderModal isOpen={activeModal === "contact"} onClose={closeModal} providerId={selectedProviderId} />
+        <ContactProviderModal isOpen={activeModal === "contact"} onClose={() => closeModal(false)} providerId={selectedProviderId} />
 
         <DeleteProviderModal
           isOpen={activeModal === "delete"}
-          onClose={closeModal}
+          onClose={() => closeModal(true)}
           providerId={selectedProviderId}
           providerName={selectedProviderName}
         />

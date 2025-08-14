@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
+import { SettingsService } from "@/lib/services/settings-service"
 import { motion } from "framer-motion"
 import { toast } from "sonner"
 import {
@@ -142,13 +143,10 @@ export default function AISettingsPage() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const response = await fetch("/api/settings/ai")
-        if (response.ok) {
-          const data = await response.json()
-          if (data.aiConfig) setAIConfig(data.aiConfig)
-          if (data.conversationConfig) setConversationConfig(data.conversationConfig)
-          if (data.expressions) setExpressions(data.expressions)
-        }
+        const data = await SettingsService.getAISettings()
+        if (data.aiConfig) setAIConfig(data.aiConfig)
+        if (data.conversationConfig) setConversationConfig(data.conversationConfig)
+        if (data.expressions) setExpressions(data.expressions)
       } catch (error) {
         console.error("Erreur lors du chargement des paramètres:", error)
       }
@@ -159,23 +157,12 @@ export default function AISettingsPage() {
   const handleSaveSettings = async () => {
     setLoading(true)
     try {
-      const response = await fetch("/api/settings/ai", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          aiConfig,
-          conversationConfig,
-          expressions,
-        }),
+      await SettingsService.updateAISettings({
+        aiConfig,
+        conversationConfig,
+        expressions,
       })
-
-      if (response.ok) {
-        toast.success("Configuration IA sauvegardée avec succès")
-      } else {
-        throw new Error("Erreur lors de la sauvegarde")
-      }
+      toast.success("Configuration IA sauvegardée avec succès")
     } catch (error) {
       toast.error("Erreur lors de la sauvegarde")
       console.error("Erreur:", error)

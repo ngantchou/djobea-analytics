@@ -7,7 +7,7 @@ import { AuthService } from "@/lib/auth"
 const API_CONFIG = {
   // Environment-based base URLs
   baseUrls: {
-    development: "",
+    development: "http://localhost:5000",
     staging: "",
     production: "https://api.yourapp.com"
   },
@@ -24,11 +24,13 @@ const API_CONFIG = {
 
   // Default settings
   defaults: {
-    timeout: 3000000,
+    timeout: 30000, // 30 seconds timeout
     retries: 1,
     headers: {
       "Content-Type": "application/json",
-      Accept: "application/json",
+      Accept: "application/json"
+      // NOTE: CORS headers should NEVER be sent by the client!
+      // They are set by the server in response headers only.
     }
   }
 }
@@ -212,7 +214,7 @@ class ApiClient {
   private maxRetries: number
 
   constructor() {
-    this.baseUrl = "http://localhost:5000" //API_CONFIG.currentBaseUrl
+    this.baseUrl = API_CONFIG.currentBaseUrl
     this.defaultHeaders = { ...API_CONFIG.defaults.headers }
     this.defaultTimeout = API_CONFIG.defaults.timeout
     this.maxRetries = API_CONFIG.defaults.retries
@@ -220,6 +222,12 @@ class ApiClient {
     // Log the configuration in development
     if (process.env.NODE_ENV === 'development') {
       console.log(`🚀 API Client initialized with base URL: ${this.baseUrl}`)
+      console.log(`🔧 Environment variables:`, {
+        NODE_ENV: process.env.NODE_ENV,
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL
+      })
+      console.log(`📍 Provider endpoint will be: ${this.baseUrl}/api/providers/`)
     }
   }
 
@@ -232,20 +240,34 @@ class ApiClient {
   }
 
   private buildUrl(endpoint: string, params?: Record<string, string | number | boolean>): string {
-    // Handle both absolute URLs and relative endpoints
-    const url = endpoint.startsWith('http') 
-      ? new URL(endpoint)
-      : new URL(`${this.baseUrl}${endpoint}`)
-
+    let fullUrl: URL
+    
+    if (endpoint.startsWith('http')) {
+      // Handle absolute URLs
+      fullUrl = new URL(endpoint)
+    } else {
+      // Handle relative endpoints - ensure proper URL joining without double slashes
+      const baseUrl = this.baseUrl.endsWith('/') ? this.baseUrl.slice(0, -1) : this.baseUrl
+      const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+      fullUrl = new URL(`${baseUrl}${cleanEndpoint}`)
+    }
+    
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== "") {
-          url.searchParams.append(key, String(value))
+          fullUrl.searchParams.append(key, String(value))
         }
       })
     }
-
-    return url.toString()
+    
+    const finalUrl = fullUrl.toString()
+    
+    // Debug logging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔗 URL built: baseUrl='${this.baseUrl}' + endpoint='${endpoint}' -> '${finalUrl}'`)
+    }
+    
+    return finalUrl
   }
 
   private async requestWithTimeout(url: string, config: RequestInit, timeout: number): Promise<Response> {
@@ -368,7 +390,8 @@ class ApiClient {
         ...headers,
       },
       cache,
-      signal
+      signal,
+      mode: 'cors' as RequestMode
     }
 
     // Add authentication token if required and available
@@ -705,6 +728,13 @@ class ApiClient {
 
   async getProvidersStats() {
     return this.request(ENDPOINTS.providers.stats)
+  }
+
+  // Zones APIs
+  async getZones() {
+    return this.request("/api/geolocation/zones", { 
+      requireAuth: false 
+    })
   }
 
   // Continue with other API methods using ENDPOINTS configuration...

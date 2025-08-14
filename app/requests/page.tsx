@@ -9,7 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RequestsTable } from "@/components/features/requests/requests-table"
 import { RequestsStats } from "@/components/features/requests/requests-stats"
+import { CreateRequestModal } from "@/components/features/requests/create-request-modal"
 import { useRequestsData } from "@/hooks/use-requests-data"
+import { useConfigData } from "@/hooks/use-config-data"
 import { Search, Filter, Plus, Download, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import React from "react"
@@ -25,6 +27,14 @@ export default function RequestsPage() {
     dateRange: "all",
   })
   const [currentPage, setCurrentPage] = useState(1)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  
+  // Get configuration data for dropdowns
+  const { 
+    getServiceOptions, 
+    getZoneOptions, 
+    loading: configLoading 
+  } = useConfigData()
 
   // Memoize the filters object to prevent infinite re-renders
   const memoizedFilters = useMemo(() => {
@@ -58,6 +68,7 @@ export default function RequestsPage() {
     loading, 
     error, 
     refetch, 
+    createRequest,
     updateRequest, 
     assignRequest, 
     cancelRequest,
@@ -125,11 +136,12 @@ export default function RequestsPage() {
   }, [exportRequests, toast])
 
   const handleNewRequest = useCallback(() => {
-    toast({
-      title: "Nouvelle demande",
-      description: "Fonctionnalité en cours de développement.",
-    })
-  }, [toast])
+    setShowCreateModal(true)
+  }, [])
+
+  const handleCreateRequest = useCallback(async (requestData: any) => {
+    await createRequest(requestData)
+  }, [createRequest])
 
   const clearFilter = useCallback((key: string) => {
     if (key === "search") {
@@ -266,11 +278,11 @@ export default function RequestsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les services</SelectItem>
-                <SelectItem value="Électricité">Électricité</SelectItem>
-                <SelectItem value="Plomberie">Plomberie</SelectItem>
-                <SelectItem value="Ménage">Ménage</SelectItem>
-                <SelectItem value="Jardinage">Jardinage</SelectItem>
-                <SelectItem value="Électroménager">Électroménager</SelectItem>
+                {getServiceOptions().map((service) => (
+                  <SelectItem key={service.value} value={service.value}>
+                    {service.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -280,10 +292,11 @@ export default function RequestsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Toutes les zones</SelectItem>
-                <SelectItem value="Bonamoussadi">Bonamoussadi</SelectItem>
-                <SelectItem value="Akwa">Akwa</SelectItem>
-                <SelectItem value="Deido">Deido</SelectItem>
-                <SelectItem value="Bonapriso">Bonapriso</SelectItem>
+                {getZoneOptions().map((zone) => (
+                  <SelectItem key={zone.value} value={zone.value}>
+                    {zone.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -399,6 +412,16 @@ export default function RequestsPage() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Modal de création de demande */}
+      <CreateRequestModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSubmit={handleCreateRequest}
+        availableServices={getServiceOptions().map(s => s.value)}
+        availableZones={getZoneOptions().map(z => z.value)}
+        loading={loading}
+      />
     </div>
   )
 }
