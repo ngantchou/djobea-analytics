@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, Suspense } from "react"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { apiClient } from "@/lib/api-client"
 import { AnalyticsStats } from "@/components/features/analytics/analytics-stats"
 import { AnalyticsCharts } from "@/components/features/analytics/analytics-charts"
@@ -16,7 +16,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { 
   AlertCircle, 
-  RefreshCw
+  RefreshCw,
+  Filter,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react"
 
 const containerVariants = {
@@ -117,6 +120,7 @@ function AnalyticsContent() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<any>(null)
+  const [showFilters, setShowFilters] = useState(false)
 
   const loadAnalyticsData = async () => {
     try {
@@ -169,15 +173,40 @@ function AnalyticsContent() {
         </motion.div>
       )}
 
-      {/* Toolbar */}
-      <motion.div variants={itemVariants}>
-        <AnalyticsToolbar selectedPeriod={period} onPeriodChange={setPeriod} />
+      {/* Toolbar with Filters Button */}
+      <motion.div variants={itemVariants} className="flex items-center justify-between gap-4">
+        <div className="flex-1">
+          <AnalyticsToolbar selectedPeriod={period} onPeriodChange={setPeriod} />
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setShowFilters(!showFilters)}
+          className="bg-gray-800 border-gray-700 hover:bg-gray-700 text-gray-300"
+        >
+          <Filter className="w-4 h-4 mr-2" />
+          Filtres
+          {showFilters ? (
+            <ChevronUp className="w-4 h-4 ml-2" />
+          ) : (
+            <ChevronDown className="w-4 h-4 ml-2" />
+          )}
+        </Button>
       </motion.div>
 
-      {/* Filters */}
-      <motion.div variants={itemVariants}>
-        <AnalyticsFilters period={period} onPeriodChange={setPeriod} onFiltersChange={handleFiltersChange} />
-      </motion.div>
+      {/* Collapsible Filters */}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, y: -20 }}
+            animate={{ opacity: 1, height: "auto", y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            <AnalyticsFilters period={period} onPeriodChange={setPeriod} onFiltersChange={handleFiltersChange} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Stats Grid */}
       <motion.div variants={itemVariants}>

@@ -1043,7 +1043,6 @@ export default function BusinessSettingsPage() {
 
   return (
     <PageContainer>
-      <Header />
 
       <UnsavedChangesBar show={hasChanges}>
         <AlertTriangle />

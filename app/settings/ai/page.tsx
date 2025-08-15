@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
-import { SettingsService } from "@/lib/services/settings-service"
+import { useSettingsData } from "@/hooks/use-settings-data"
 import { motion } from "framer-motion"
 import { toast } from "sonner"
 import {

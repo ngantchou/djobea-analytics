@@ -3,61 +3,48 @@
 import { Suspense, useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { InteractiveMap } from "@/components/geolocation/interactive-map"
-import { MapPin, Navigation, Layers, Filter } from "lucide-react"
+import { MapPin, Navigation, Layers, Filter, Loader2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { apiClient } from "@/lib/api-client"
-
-interface MapStats {
-  providers: number
-  requests: number
-  pending: number
-  zones: number
-  activityRate: number
-}
-
-interface City {
-  name: string
-  requests: number
-}
+import { useGeolocationData } from "@/hooks/use-geolocation-data"
 
 export default function MapPage() {
-  const [stats, setStats] = useState<MapStats>({
-    providers: 0,
-    requests: 0,
-    pending: 0,
-    zones: 0,
-    activityRate: 0
-  })
-  const [cities, setCities] = useState<City[]>([])
-  const [loading, setLoading] = useState(true)
+  const { 
+    mapStats: stats, 
+    cities, 
+    regions,
+    loading, 
+    error,
+    getTopCities
+  } = useGeolocationData()
 
-  useEffect(() => {
-    const loadMapData = async () => {
-      try {
-        setLoading(true)
-        const [statsResponse, citiesResponse] = await Promise.all([
-          apiClient.getMapStats(),
-          apiClient.getActiveCities()
-        ])
-        
-        if (statsResponse.success) {
-          setStats(statsResponse.data)
-        }
-        
-        if (citiesResponse.success) {
-          setCities(citiesResponse.data)
-        }
-      } catch (error) {
-        console.error('Error loading map data:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
+          <h2 className="text-2xl font-semibold mb-2">Chargement de la carte</h2>
+          <p className="text-muted-foreground">Récupération des données géographiques...</p>
+        </div>
+      </div>
+    )
+  }
 
-    loadMapData()
-  }, [])
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <MapPin className="w-12 h-12 mx-auto mb-4 text-red-500" />
+          <h2 className="text-2xl font-semibold mb-2 text-red-600">Erreur de chargement</h2>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Réessayer
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -103,7 +90,7 @@ export default function MapPage() {
                   <span className="text-sm font-medium">Prestataires</span>
                 </div>
                 <p className="text-2xl font-bold text-blue-600">
-                  {loading ? "..." : stats.providers}
+                  {stats.providers}
                 </p>
                 <p className="text-xs text-muted-foreground">Actifs dans le système</p>
               </CardContent>
@@ -116,10 +103,10 @@ export default function MapPage() {
                   <span className="text-sm font-medium">Demandes</span>
                 </div>
                 <p className="text-2xl font-bold text-red-600">
-                  {loading ? "..." : stats.requests}
+                  {stats.requests}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {loading ? "..." : stats.pending} en attente
+                  {stats.pending} en attente
                 </p>
               </CardContent>
             </Card>
@@ -131,7 +118,7 @@ export default function MapPage() {
                   <span className="text-sm font-medium">Zones</span>
                 </div>
                 <p className="text-2xl font-bold text-purple-600">
-                  {loading ? "..." : stats.zones}
+                  {stats.zones}
                 </p>
                 <p className="text-xs text-muted-foreground">Zones couvertes</p>
               </CardContent>
@@ -144,7 +131,7 @@ export default function MapPage() {
                   <span className="text-sm font-medium">Actifs</span>
                 </div>
                 <p className="text-2xl font-bold text-green-600">
-                  {loading ? "..." : `${stats.activityRate}%`}
+                  {stats.activityRate}%
                 </p>
                 <p className="text-xs text-muted-foreground">Taux d'activité</p>
               </CardContent>
@@ -207,19 +194,19 @@ export default function MapPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Zones actives</span>
                   <Badge className="bg-blue-100 text-blue-700">
-                    {loading ? "..." : stats.zones}
+                    {stats.zones}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Prestataires total</span>
                   <Badge className="bg-green-100 text-green-700">
-                    {loading ? "..." : stats.providers}
+                    {stats.providers}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Taux d'activité</span>
                   <Badge className="bg-yellow-100 text-yellow-700">
-                    {loading ? "..." : `${stats.activityRate}%`}
+                    {stats.activityRate}%
                   </Badge>
                 </div>
               </div>
@@ -235,19 +222,19 @@ export default function MapPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Total des demandes</span>
                   <Badge variant="outline">
-                    {loading ? "..." : stats.requests}
+                    {stats.requests}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">En attente</span>
                   <Badge variant="destructive">
-                    {loading ? "..." : stats.pending}
+                    {stats.pending}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">En cours</span>
                   <Badge variant="secondary">
-                    {loading ? "..." : Math.max(0, stats.requests - stats.pending)}
+                    {Math.max(0, stats.requests - stats.pending)}
                   </Badge>
                 </div>
               </div>
@@ -263,19 +250,19 @@ export default function MapPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Villes couvertes</span>
                   <span className="text-sm font-medium text-green-600">
-                    {loading ? "..." : cities.length > 0 ? cities.slice(0, 3).map(c => c.name).join(", ") : "Aucune"}
+                    {cities.length > 0 ? getTopCities(3).map(c => c.name).join(", ") : "Aucune"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Zones de service</span>
                   <span className="text-sm font-medium text-blue-600">
-                    {loading ? "..." : stats.zones} régions
+                    {stats.zones} régions
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Densité de prestataires</span>
                   <span className="text-sm font-medium text-purple-600">
-                    {loading ? "..." : Math.round(stats.providers / Math.max(1, stats.zones))} par zone
+                    {Math.round(stats.providers / Math.max(1, stats.zones))} par zone
                   </span>
                 </div>
               </div>

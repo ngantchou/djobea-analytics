@@ -129,22 +129,14 @@ class NotificationsService {
     try {
       logger.info("Deleting notification", { id })
 
-      const response = await fetch(`/api/notifications/${id}`, {
-        method: "DELETE",
-      })
+      const response = await apiClient.deleteNotification(id)
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.message || "Failed to delete notification")
-      }
-
-      if (result.success) {
+      if (response.success) {
         logger.info("Notification deleted", { id })
         return
       }
 
-      throw new Error(result.error || "Failed to delete notification")
+      throw new Error(response.error || "Failed to delete notification")
     } catch (error) {
       logger.error("Failed to delete notification", { error, id })
       throw error
@@ -223,12 +215,7 @@ class NotificationsService {
     try {
       logger.info("Fetching notification preferences")
 
-      const response = await fetch("/api/notifications/preferences")
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.message || "Failed to fetch preferences")
-      }
+      const result = await apiClient.getNotificationPreferences()
 
       if (result.success && result.data) {
         return result.data

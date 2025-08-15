@@ -31,8 +31,20 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useRouter } from "next/navigation"
-import { apiClient } from "@/lib/api-client"
+import { useGeolocationData } from "@/hooks/use-geolocation-data"
 import { logger } from "@/lib/logger"
+
+// Colors for regions - moved outside component to prevent recreation
+const REGION_COLORS = [
+  "#3B82F6", // blue
+  "#10B981", // green
+  "#F59E0B", // amber
+  "#EF4444", // red
+  "#8B5CF6", // purple
+  "#EC4899", // pink
+  "#06B6D4", // cyan
+  "#F97316", // orange
+]
 
 // Define interfaces for the API response
 interface GeoLocation {
@@ -93,6 +105,15 @@ interface InteractiveMapProps {
 
 export function InteractiveMap({ compact = false }: InteractiveMapProps) {
   const router = useRouter()
+  const {
+    regions,
+    cities,
+    loading: isLoading,
+    error,
+    fetchGeolocationData,
+    filterRegions
+  } = useGeolocationData()
+  
   const [selectedRegion, setSelectedRegion] = useState<RegionData | null>(null)
   const [mapType, setMapType] = useState<"satellite" | "roadmap" | "terrain">("roadmap")
   const [showTraffic, setShowTraffic] = useState(false)
@@ -103,118 +124,22 @@ export function InteractiveMap({ compact = false }: InteractiveMapProps) {
   const [selectedCity, setSelectedCity] = useState<string>("all")
   const [selectedZone, setSelectedZone] = useState<string>("all")
   const [viewMode, setViewMode] = useState<"city" | "region">("region")
-  const [regions, setRegions] = useState<RegionData[]>([])
-  const [cities, setCities] = useState<City[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [period, setPeriod] = useState("30d")
   const [level, setLevel] = useState("city")
 
-  // Colors for regions
-  const regionColors = [
-    "#3B82F6", // blue
-    "#10B981", // green
-    "#F59E0B", // amber
-    "#EF4444", // red
-    "#8B5CF6", // purple
-    "#EC4899", // pink
-    "#06B6D4", // cyan
-    "#F97316", // orange
-  ]
-
-  // Load geographic data from API
+  // Refetch data when period or level changes
   useEffect(() => {
-    const loadGeolocationData = async () => {
-      try {
-        setIsLoading(true)
-        
-        // Fetch data from your API
-        const response = await apiClient.getGeolocationData()
-        
-        if (response.success && response.data) {
-          // Process regions
-          const apiRegions = response.data?.map((item: GeoLocation, index: number) => {
-            // Create a unique ID from the region name
-            const id = item.region.toLowerCase().replace(/[^a-z0-9]/g, "-")
-            
-            return {
-              id,
-              name: item.region,
-              requests: item.requests,
-              providers: item.providers,
-              revenue: item.revenue,
-              satisfaction: item.satisfaction,
-              responseTime: item.responseTime,
-              coordinates: { lat: item.coordinates[0], lng: item.coordinates[1] },
-              growth: item.growth,
-              marketShare: item.marketShare,
-              color: regionColors[index % regionColors.length],
-              // City will be extracted from database data
-              city: item.region.split(',')[0] || item.region,
-            }
-          })
-          
-          setRegions(apiRegions)
-          
-          // Extract cities from regions
-          const citiesMap = new Map<string, City>()
-          
-          apiRegions.forEach((region: { city: string; coordinates: any; id: string; requests: number; providers: number; revenue: number }) => {
-            const cityName = region.city
-            if (!cityName) return // Skip regions without city data
-            const cityId = cityName.toLowerCase().replace(/[^a-z0-9]/g, "-")
-            
-            if (!citiesMap.has(cityId)) {
-              citiesMap.set(cityId, {
-                id: cityId,
-                name: cityName,
-                center: region.coordinates, // Use the coordinates of the first region in this city
-                regions: [region.id],
-                requests: region.requests,
-                providers: region.providers,
-                revenue: region.revenue,
-              })
-            } else {
-              const city = citiesMap.get(cityId)!
-              city.regions.push(region.id)
-              city.requests += region.requests
-              city.providers += region.providers
-              city.revenue += region.revenue
-            }
-          })
-          
-          setCities(Array.from(citiesMap.values()))
-        } else {
-          logger.error("Invalid API response format", response)
-          setRegions([])
-          setCities([])
-        }
-      } catch (error) {
-        logger.error("Error loading geolocation data:", error)
-        setRegions([])
-        setCities([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    
-    loadGeolocationData()
+    fetchGeolocationData({ period, level })
   }, [period, level])
   
 
-  // Filtering logic
-  const filteredRegions = regions.filter(region => {
-    const matchesCity = selectedCity === "all" || region.city.toLowerCase() === selectedCity
-    const matchesZone = selectedZone === "all" || region.id === selectedZone
-    const matchesSearch = !searchQuery || 
-      region.name.toLowerCase().includes(searchQuery.toLowerCase())
-    
-    // Filter by type (providers or requests)
-    const matchesType = filterType === "all" || 
-      (filterType === "providers" && region.providers > 0) ||
-      (filterType === "requests" && region.requests > 0)
-    
-    return matchesCity && matchesZone && matchesSearch && matchesType
+  // Use the hook's filtering logic
+  const filteredRegions = filterRegions({
+    city: selectedCity,
+    zone: selectedZone,
+    search: searchQuery,
+    type: filterType
   })
 
   // Format currency

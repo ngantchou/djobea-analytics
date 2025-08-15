@@ -15,6 +15,7 @@ import {
   Plus,
   Edit,
   Trash2,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,7 +27,7 @@ import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import Link from "next/link"
-import { useSettingsStore } from "@/store/use-settings-store"
+import { useSettingsData } from "@/hooks/use-settings-data"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -70,8 +71,15 @@ const timezones = [
 ]
 
 export default function GeneralSettingsPage() {
-  const { general, updateGeneral, saveSettings, isLoading, loadSettings, addZone, updateZone, deleteZone, addService, updateService, deleteService } = useSettingsStore()
-  const [localSettings, setLocalSettings] = useState(general)
+  const { 
+    generalSettings, 
+    loading, 
+    error, 
+    fetchGeneralSettings, 
+    updateGeneralSettings 
+  } = useSettingsData()
+  
+  const [localSettings, setLocalSettings] = useState(generalSettings)
   const [newZoneName, setNewZoneName] = useState("")
   const [newZoneDescription, setNewZoneDescription] = useState("")
   const [editingZone, setEditingZone] = useState<string | null>(null)
@@ -83,36 +91,56 @@ export default function GeneralSettingsPage() {
 
   useEffect(() => {
     // Load settings from API when component mounts
-    loadSettings()
-  }, [loadSettings])
+    fetchGeneralSettings()
+  }, [fetchGeneralSettings])
 
   useEffect(() => {
-    if (general) {
-      setLocalSettings(general)
+    if (generalSettings) {
+      setLocalSettings(generalSettings)
     }
-  }, [general])
+  }, [generalSettings])
 
-  // Protection contre les valeurs undefined
-  if (!general || !localSettings) {
+  // Protection contre les valeurs undefined et gestion du loading
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Chargement des paramètres...</div>
+        <div className="text-white text-xl flex items-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          Chargement des paramètres...
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-red-400 text-xl">Erreur: {error}</div>
+      </div>
+    )
+  }
+
+  if (!generalSettings || !localSettings) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-xl">Aucun paramètre trouvé</div>
       </div>
     )
   }
 
   const handleSave = async () => {
     try {
-      updateGeneral(localSettings)
-      await saveSettings()
-      toast.success("Configuration générale sauvegardée avec succès")
+      if (localSettings) {
+        await updateGeneralSettings(localSettings)
+        toast.success("Configuration générale sauvegardée avec succès")
+      }
     } catch (error) {
       toast.error("Erreur lors de la sauvegarde")
     }
   }
 
   const handleReset = () => {
-    setLocalSettings(general)
+    setLocalSettings(generalSettings)
     toast.info("Modifications annulées")
   }
 
@@ -132,10 +160,19 @@ export default function GeneralSettingsPage() {
     }
 
     try {
-      await addZone({
+      // Ajouter la zone localement en attendant l'implémentation côté backend
+      const newZone = {
+        id: Date.now().toString(),
         name: newZoneName,
-        description: newZoneDescription || "Nouvelle zone de service"
-      })
+        description: newZoneDescription || "Nouvelle zone de service",
+        status: "active" as const,
+        requestCount: 0
+      }
+
+      setLocalSettings(prev => prev ? {
+        ...prev,
+        zones: [...(prev.zones || []), newZone]
+      } : prev)
       
       setNewZoneName("")
       setNewZoneDescription("")
@@ -147,7 +184,10 @@ export default function GeneralSettingsPage() {
 
   const handleRemoveZone = async (zoneId: string) => {
     try {
-      await deleteZone(zoneId)
+      setLocalSettings(prev => prev ? {
+        ...prev,
+        zones: (prev.zones || []).filter(zone => zone.id !== zoneId)
+      } : prev)
       toast.success("Zone supprimée")
     } catch (error) {
       toast.error("Erreur lors de la suppression de la zone")

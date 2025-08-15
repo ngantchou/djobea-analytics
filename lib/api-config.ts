@@ -27,15 +27,15 @@ export const getApiBaseUrl = (): string => {
 // API endpoint paths
 export const API_PATHS = {
   SETTINGS: {
-    GENERAL: "/api/admin/settings/general",
-    ZONES: "/api/admin/settings/general/zones",
-    SERVICES: "/api/admin/settings/general/services",
-    ECONOMIC_MODEL: "/api/admin/settings/general/economic-model",
-    NOTIFICATIONS: "/api/admin/settings/notifications",
-    SECURITY: "/api/admin/settings/security",
-    BUSINESS: "/api/admin/settings/business",
-    BUSINESS_TEST: "/api/admin/settings/business/test",
-    BUSINESS_EXPORT: "/api/admin/settings/business/export",
+    GENERAL: "/api/settings/general",
+    ZONES: "/api/settings/general/zones",
+    SERVICES: "/api/settings/general/services",
+    ECONOMIC_MODEL: "/api/settings/general/economic-model",
+    NOTIFICATIONS: "/api/settings/notifications",
+    SECURITY: "/api/settings/security",
+    BUSINESS: "/api/settings/business",
+    BUSINESS_TEST: "/api/settings/business/test",
+    BUSINESS_EXPORT: "/api/settings/business/export",
   },
   ANALYTICS: {
     DASHBOARD: "/api/analytics",

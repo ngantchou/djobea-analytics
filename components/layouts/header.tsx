@@ -16,8 +16,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { GlobalSearch } from "@/components/keyboard/global-search"
+import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useAuth } from "@/components/auth-provider"
-import { useNotifications } from "@/components/notification-provider"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
@@ -47,7 +47,6 @@ interface NavigationCounts {
 
 export function Header() {
   const { user, logout } = useAuth()
-  const { notifications, unreadCount, markAsRead } = useNotifications()
   const [searchOpen, setSearchOpen] = useState(false)
   const [counts, setCounts] = useState<NavigationCounts | null>(null)
   const [loading, setLoading] = useState(true)
@@ -301,46 +300,7 @@ export function Header() {
         </div>
 
         {/* Notifications */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-4 w-4" />
-              {unreadCount > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs">{unreadCount}</Badge>
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel>Notifications ({unreadCount})</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <div className="max-h-64 overflow-y-auto">
-              {notifications.slice(0, 5).map((notification) => (
-                <DropdownMenuItem
-                  key={notification.id}
-                  className="flex flex-col items-start p-3 cursor-pointer"
-                  onClick={() => markAsRead(notification.id)}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="font-medium text-sm">{notification.title}</span>
-                    {!notification.read && <div className="w-2 h-2 bg-blue-500 rounded-full" />}
-                  </div>
-                  <span className="text-xs text-muted-foreground mt-1">{notification.message}</span>
-                  <span className="text-xs text-muted-foreground mt-1">
-                    {notification.timestamp.toLocaleTimeString()}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-              {notifications.length === 0 && (
-                <DropdownMenuItem disabled>
-                  <div className="flex flex-col gap-1">
-                    <div className="font-medium">Aucune notification</div>
-                    <div className="text-sm text-muted-foreground">Vous êtes à jour !</div>
-                  </div>
-                </DropdownMenuItem>
-              )}
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <NotificationBell />
 
         {/* User Menu */}
         <DropdownMenu>

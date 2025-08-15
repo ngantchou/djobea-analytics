@@ -328,11 +328,32 @@ export class SettingsService {
     }
   }
 
+  // General Settings methods (new)
+  static async getGeneralSettings(): Promise<any> {
+    try {
+      const response = await ApiClient.get<any>("/api/settings/general")
+      return response.data || response
+    } catch (error) {
+      console.error("Get general settings error:", error)
+      throw new Error("Erreur lors de la récupération des paramètres généraux")
+    }
+  }
+
+  static async updateGeneralSettings(settings: any): Promise<any> {
+    try {
+      const response = await ApiClient.post<any>("/api/settings/general", settings)
+      return response.data || response
+    } catch (error) {
+      console.error("Update general settings error:", error)
+      throw new Error("Erreur lors de la mise à jour des paramètres généraux")
+    }
+  }
+
   // AI-specific settings methods
   static async getAISettings(): Promise<any> {
     try {
       const response = await ApiClient.get<any>("/api/settings/ai")
-      return response
+      return response.data || response
     } catch (error) {
       console.error("Get AI settings error:", error)
       throw new Error("Erreur lors de la récupération des paramètres IA")
@@ -342,7 +363,7 @@ export class SettingsService {
   static async updateAISettings(settings: any): Promise<any> {
     try {
       const response = await ApiClient.post<any>("/api/settings/ai", settings)
-      return response
+      return response.data || response
     } catch (error) {
       console.error("Update AI settings error:", error)
       throw new Error("Erreur lors de la mise à jour des paramètres IA")
@@ -353,7 +374,7 @@ export class SettingsService {
   static async getWhatsAppSettings(): Promise<any> {
     try {
       const response = await ApiClient.get<any>("/api/settings/whatsapp")
-      return response
+      return response.data || response
     } catch (error) {
       console.error("Get WhatsApp settings error:", error)
       throw new Error("Erreur lors de la récupération des paramètres WhatsApp")
@@ -363,7 +384,7 @@ export class SettingsService {
   static async updateWhatsAppSettings(settings: any): Promise<any> {
     try {
       const response = await ApiClient.post<any>("/api/settings/whatsapp", settings)
-      return response
+      return response.data || response
     } catch (error) {
       console.error("Update WhatsApp settings error:", error)
       throw new Error("Erreur lors de la mise à jour des paramètres WhatsApp")
@@ -374,7 +395,7 @@ export class SettingsService {
   static async getBusinessSettings(): Promise<any> {
     try {
       const response = await ApiClient.get<any>("/api/settings/business")
-      return response
+      return response.data || response
     } catch (error) {
       console.error("Get Business settings error:", error)
       throw new Error("Erreur lors de la récupération des paramètres business")
@@ -384,7 +405,7 @@ export class SettingsService {
   static async updateBusinessSettings(settings: any): Promise<any> {
     try {
       const response = await ApiClient.post<any>("/api/settings/business", settings)
-      return response
+      return response.data || response
     } catch (error) {
       console.error("Update Business settings error:", error)
       throw new Error("Erreur lors de la mise à jour des paramètres business")
@@ -395,7 +416,7 @@ export class SettingsService {
   static async getSecuritySettings(): Promise<any> {
     try {
       const response = await ApiClient.get<any>("/api/settings/security")
-      return response
+      return response.data || response
     } catch (error) {
       console.error("Get Security settings error:", error)
       throw new Error("Erreur lors de la récupération des paramètres sécurité")
@@ -405,7 +426,7 @@ export class SettingsService {
   static async updateSecuritySettings(settings: any): Promise<any> {
     try {
       const response = await ApiClient.post<any>("/api/settings/security", settings)
-      return response
+      return response.data || response
     } catch (error) {
       console.error("Update Security settings error:", error)
       throw new Error("Erreur lors de la mise à jour des paramètres sécurité")
@@ -416,7 +437,7 @@ export class SettingsService {
   static async getNotificationsSettings(): Promise<any> {
     try {
       const response = await ApiClient.get<any>("/api/settings/notifications")
-      return response
+      return response.data || response
     } catch (error) {
       console.error("Get Notifications settings error:", error)
       throw new Error("Erreur lors de la récupération des paramètres notifications")
@@ -426,10 +447,31 @@ export class SettingsService {
   static async updateNotificationsSettings(settings: any): Promise<any> {
     try {
       const response = await ApiClient.post<any>("/api/settings/notifications", settings)
-      return response
+      return response.data || response
     } catch (error) {
       console.error("Update Notifications settings error:", error)
       throw new Error("Erreur lors de la mise à jour des paramètres notifications")
+    }
+  }
+
+  // Performance-specific settings methods
+  static async getPerformanceSettings(): Promise<any> {
+    try {
+      const response = await ApiClient.get<any>("/api/settings/performance")
+      return response.data || response
+    } catch (error) {
+      console.error("Get Performance settings error:", error)
+      throw new Error("Erreur lors de la récupération des paramètres performance")
+    }
+  }
+
+  static async updatePerformanceSettings(settings: any): Promise<any> {
+    try {
+      const response = await ApiClient.post<any>("/api/settings/performance", settings)
+      return response.data || response
+    } catch (error) {
+      console.error("Update Performance settings error:", error)
+      throw new Error("Erreur lors de la mise à jour des paramètres performance")
     }
   }
 }

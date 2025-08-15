@@ -133,35 +133,52 @@ interface AnalyticsStatsProps {
 }
 
 export function AnalyticsStats({ data, period }: AnalyticsStatsProps) {
+  // Si pas de données, on affiche des indicateurs de chargement
+  if (!data) {
+    return (
+      <StatsGrid>
+        {Array.from({ length: 4 }).map((_, index) => (
+          <StatCard key={index} variant="default">
+            <div className="animate-pulse">
+              <div className="h-4 bg-gray-700 rounded mb-3 w-24"></div>
+              <div className="h-8 bg-gray-700 rounded mb-2 w-16"></div>
+              <div className="h-3 bg-gray-700 rounded w-32"></div>
+            </div>
+          </StatCard>
+        ))}
+      </StatsGrid>
+    )
+  }
+
   const stats = [
     {
       title: "Taux de Réussite",
-      value: `${data?.successRate || 89.2}%`,
-      change: data?.trends?.successRate || 2.3,
+      value: `${data.successRate?.toFixed(1) || 0}%`,
+      change: data.trends?.successRate || 0,
       icon: CheckCircle,
       variant: "success",
       description: "Performance globale du système",
     },
     {
       title: "Temps de Réponse",
-      value: `${data?.responseTime || 14.5}m`,
-      change: data?.trends?.responseTime || -1.2,
+      value: `${data.responseTime?.toFixed(1) || 0}m`,
+      change: data.trends?.responseTime || 0,
       icon: Clock,
-      variant: "warning",
+      variant: "warning", 
       description: "Temps moyen de réponse",
     },
     {
       title: "Demandes Totales",
-      value: data?.totalRequests || 247,
-      change: data?.trends?.totalRequests || 15,
+      value: data.totalRequests || 0,
+      change: data.trends?.totalRequests || 0,
       icon: Users,
       variant: "default",
       description: `Période: ${period}`,
     },
     {
       title: "Satisfaction Client",
-      value: data?.satisfaction || 4.8,
-      change: data?.trends?.satisfaction || 0.1,
+      value: data.satisfaction?.toFixed(1) || "N/A",
+      change: data.trends?.satisfaction || 0,
       icon: Star,
       variant: "success",
       description: "Note moyenne sur 5",

@@ -239,7 +239,6 @@ export function ProfileActivity() {
             </div>
           )}
         </div>
-        )}
 
         <div className="mt-4 pt-4 border-t border-gray-700">
           <button className="w-full text-center text-sm text-blue-400 hover:text-blue-300 transition-colors">

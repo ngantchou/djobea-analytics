@@ -1037,7 +1037,6 @@ export default function ProviderSettingsPage() {
 
   return (
     <PageContainer>
-      <Header />
 
       <MainContent>
         <motion.div variants={containerVariants} initial="hidden" animate="visible">
